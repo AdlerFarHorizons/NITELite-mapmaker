@@ -6,7 +6,7 @@ import unittest
 
 import numpy as np
 
-from .nitelite_mapmaker import mapmaker
+from nitelite_mapmaker import mapmaker
 
 
 class TestGlobal(unittest.TestCase):
