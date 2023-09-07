@@ -6,6 +6,7 @@ from . import observations
 
 class Mapmaker:
 
-    def __init__(self, images_dir, metadata_fp):
+    def __init__(self, **observation_kwargs):
 
-       self.flight = observations.Flight()
+        self.flight = observations.Flight(**observation_kwargs)
+
