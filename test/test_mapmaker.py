@@ -11,6 +11,14 @@ from nitelite_mapmaker import mapmaker
 
 class TestGlobal(unittest.TestCase):
 
+    def setUp(self):
+
+        flight_name = '220513-FH135'
+        self.metadata_fp = os.path.join('./test/test_data', flight_name,
+                                        'CollatedImageLog.csv')
+        self.image_dir = os.path.join('./test/test_data', flight_name,
+                                      'images/23085686')
+
     def test_mapmake(self):
 
         mm = mapmaker.Mapmaker()
@@ -19,7 +27,10 @@ class TestGlobal(unittest.TestCase):
 
     def test_load(self):
 
-        mm = mapmaker.Mapmaker()
+        mm = mapmaker.Mapmaker(
+            image_dir=self.image_dir,
+            metadata_fp=self.metadata_fp,
+        )
 
         mm.load()
 
