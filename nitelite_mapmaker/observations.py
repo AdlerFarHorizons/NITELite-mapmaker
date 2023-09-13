@@ -55,7 +55,7 @@ class Flight:
 
         # Load and reshape raw image data.
         raw_img = np.fromfile(fp, dtype=np.uint16)
-        raw_img = raw_img.reshape(self.flight.img_shape)
+        raw_img = raw_img.reshape(self.img_shape)
 
         # Get RGB image
         # Good method (does interpolation).
@@ -77,6 +77,6 @@ class Flight:
             raise ValueError('Invalid conversion method.')
 
         # Scale RGB image to 0 to 1 for each channel.
-        img = img / self.flight.max_val
+        img = img / self.max_val
 
         return img
