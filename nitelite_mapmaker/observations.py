@@ -44,7 +44,7 @@ class Flight:
         # Get list of image filepaths.
         self.image_fps = glob.glob(os.path.join(self.image_dir, '*.raw'))
 
-    def load_img_log(self, img_log_fp: str = None):
+    def load_img_log(self, img_log_fp: str = None) -> pd.DataFrame:
         '''Load the images log.
 
         Args:
@@ -98,7 +98,13 @@ class Flight:
         self.img_log_df = img_log_df
         return img_log_df
 
-    def load_imu_log(self, imu_log_fp: str = None):
+    def load_imu_log(self, imu_log_fp: str = None) -> pd.DataFrame:
+        '''Load the IMU log.
+
+        Args:
+            imu_log_fp: Location of the IMU log.
+                Defaults to the one provided at init.
+        '''
 
         if imu_log_fp is None:
             imu_log_fp = self.imu_log_fp
@@ -116,18 +122,18 @@ class Flight:
         ac_columns = ['TempC', 'pressure', 'mAltitude']
         imu_log_df.loc[imu_log_df['pressure'].astype(float) < 0] = np.nan
 
-        # We'll skip this step for now because we filter on the date later
         # DEPRECATED
+        # We'll skip this step for now because we filter on the date later
         '''
         # Convert to datetime, toss out IMU recordings not associated with the 5-13 flight.
-        imu_log_df['CurrTimestamp'] = pd.to_datetime(imu_log_df['CurrTimestamp'])
         imu_log_df.drop(
             imu_log_df.index[imu_log_df['CurrTimestamp'] < pd.to_datetime('2022-5-13 20')],
             inplace=True,
         )
         '''
 
-        # Sort by datetime
+        # Convert to datetime and sort
+        imu_log_df['CurrTimestamp'] = pd.to_datetime(imu_log_df['CurrTimestamp'])
         imu_log_df.sort_values('CurrTimestamp', inplace=True)
 
         # Assign dtypes
@@ -145,6 +151,53 @@ class Flight:
 
         self.imu_log_df = imu_log_df
         return imu_log_df
+
+    def load_gps_log(self, gps_log_fp: str = None) -> pd.DataFrame:
+        '''Load the GPS log.
+
+        Args:
+            gps_log_fp: Location of the GPS log.
+                Defaults to the one provided at init.
+        '''
+
+        if gps_log_fp is None:
+            gps_log_fp = self.gps_log_fp
+
+        gps_log_df = pd.read_csv(gps_log_fp)
+
+        # Remove the extra header rows and the empty rows
+        gps_log_df.dropna(subset=['CurrTimestamp', ], inplace=True)
+        gps_log_df.drop(
+            gps_log_df.index[gps_log_df['CurrTimestamp'] == 'CurrTimestamp'],
+            inplace=True
+        )
+
+        # Remove the empty rows
+        empty_timestamp = '00.00.0000 00:00:00000'
+        gps_log_df.drop(
+            gps_log_df.index[gps_log_df['CurrTimestamp'] == empty_timestamp],
+            inplace=True
+        )
+
+        # DEPRECATED
+        '''
+        # Convert to datetime, toss out recordings not associated with the flight itself.
+        gps_log_df.drop(gps_log_df.index[gps_log_df['CurrTimestamp'] < pd.to_datetime('2022-5-13 20')], inplace=True)
+        '''
+
+        # Convert to datetime and sort
+        gps_log_df['CurrTimestamp'] = pd.to_datetime(gps_log_df['CurrTimestamp'])
+        gps_log_df.sort_values('CurrTimestamp', inplace=True)
+
+        # Assign dtypes
+        for column in gps_log_df.columns:
+            if column in ['CurrTimestamp', 'GPSTime']:
+                continue
+                
+            gps_log_df[column] = gps_log_df[column].astype(float)
+
+        self.gps_log_df = gps_log_df
+        return gps_log_df
 
     def prep_metadata(self):
         '''Load the image, IMU, and GPS metadata and correlate them.
