@@ -125,16 +125,6 @@ class Flight:
         ac_columns = ['TempC', 'pressure', 'mAltitude']
         imu_log_df.loc[imu_log_df['pressure'].astype(float) < 0] = np.nan
 
-        # DEPRECATED
-        # We'll skip this step for now because we filter on the date later
-        '''
-        # Convert to datetime, toss out IMU recordings not associated with the 5-13 flight.
-        imu_log_df.drop(
-            imu_log_df.index[imu_log_df['CurrTimestamp'] < pd.to_datetime('2022-5-13 20')],
-            inplace=True,
-        )
-        '''
-
         # Convert to datetime and sort
         imu_log_df['CurrTimestamp'] = pd.to_datetime(imu_log_df['CurrTimestamp'])
         imu_log_df.sort_values('CurrTimestamp', inplace=True)
@@ -181,12 +171,6 @@ class Flight:
             gps_log_df.index[gps_log_df['CurrTimestamp'] == empty_timestamp],
             inplace=True
         )
-
-        # DEPRECATED
-        '''
-        # Convert to datetime, toss out recordings not associated with the flight itself.
-        gps_log_df.drop(gps_log_df.index[gps_log_df['CurrTimestamp'] < pd.to_datetime('2022-5-13 20')], inplace=True)
-        '''
 
         # Convert to datetime and sort
         gps_log_df['CurrTimestamp'] = pd.to_datetime(gps_log_df['CurrTimestamp'])
@@ -264,13 +248,6 @@ class Flight:
             dfs_interped.append(df_interped)
 
         log_df = pd.concat(dfs_interped, axis='columns', )
-
-        # DEPRECATED
-        '''
-        # Set up a useful index
-        metadata['id'] = metadata.index
-        metadata = metadata.set_index(['camera_num', 'timestamp', 'id']).sort_index()
-        '''
 
         self.log_df = log_df
         return log_df
