@@ -17,24 +17,24 @@ class TestPrepMetadata(unittest.TestCase):
         self.metadata_dir = os.path.join('./test/test_data', flight_name)
         self.image_dir = os.path.join('./test/test_data', flight_name,
                                       'images/23085686')
-        image_log_fp = os.path.join(self.metadata_dir, 'image.log')
+        img_log_fp = os.path.join(self.metadata_dir, 'image.log')
         imu_log_fp = os.path.join(self.metadata_dir, 'OBC/PresIMULog.csv')
         gps_log_fp = os.path.join(self.metadata_dir, 'OBC/GPSLog.csv')
 
         self.flight = observations.Flight(
             image_dir=self.image_dir,
-            image_log_fp = image_log_fp,
+            img_log_fp = img_log_fp,
             imu_log_fp = imu_log_fp,
             gps_log_fp = gps_log_fp,
         )
 
-    def test_load_image_log(self):
+    def test_load_img_log(self):
 
-        self.flight.load_image_log()
+        self.flight.load_img_log()
 
         # Check for no unnamed columns
-        image_log_cols = self.flight.image_log_df.columns
-        assert sum(['Unnamed' in column for column in image_log_cols]) == 0
+        img_log_cols = self.flight.img_log_df.columns
+        assert sum(['Unnamed' in column for column in img_log_cols]) == 0
 
     def test_load_imu_log(self):
 
