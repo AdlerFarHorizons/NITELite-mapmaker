@@ -9,6 +9,7 @@ import os
 import cv2
 import numpy as np
 import pandas as pd
+import scipy
 
 
 class Flight:
@@ -21,6 +22,7 @@ class Flight:
         gps_log_fp: str,
         img_shape: Tuple[int, int] = (1200, 1920),
         max_val: int = 4091,
+        metadata_tz_offset_in_hr: float = 5.,
     ):
         '''
         Args:
@@ -40,6 +42,7 @@ class Flight:
         self.gps_log_fp = gps_log_fp
         self.img_shape = img_shape
         self.max_val = max_val
+        self.metadata_tz_offset_in_hr = metadata_tz_offset_in_hr
 
         # Get list of image filepaths.
         self.image_fps = glob.glob(os.path.join(self.image_dir, '*.raw'))
@@ -199,19 +202,112 @@ class Flight:
         self.gps_log_df = gps_log_df
         return gps_log_df
 
-    def prep_metadata(self):
-        '''Load the image, IMU, and GPS metadata and correlate them.
+    def combine_logs(
+        self,
+        img_log_df: pd.DataFrame = None,
+        imu_log_df: pd.DataFrame = None,
+        gps_log_df: pd.DataFrame = None,
+    ) -> pd.DataFrame:
+        '''Combine the different logs
+
+        Args:
+            img_log_df: DataFrame containing image metadata.
+            imu_log_df: DataFrame containing IMU metadata.
+            gps_log_df: DataFrame containing GPS metadata.
+
+        Returns:
+            log_df: Combined dataframe containing IMU and GPS metadata
+                for each image.
         '''
 
-        img_log_metadata = self.load_img_log_metadata()
-        imu_metadata = self.load_imu_metadata()
-        gps_metadata = self.load_gps_metadata()
+        if img_log_df is None:
+            img_log_df = self.img_log_df
+        if imu_log_df is None:
+            imu_log_df = self.imu_log_df
+        if gps_log_df is None:
+            gps_log_df = self.gps_log_df
 
-        self.metadata = self.combine_metadata(
-            img_log_metadata,
-            imu_metadata,
-            gps_metadata,
+        dfs_interped = [img_log_df, ]
+        source_log_names = ['imu', 'gps']
+        for i, df_to_include in enumerate([imu_log_df, gps_log_df]):
+            
+            source_log_name = source_log_names[i]
+            df_to_include = df_to_include.copy()
+
+            # This doesn't interpolate well unless converted
+            if 'GPSTime' in df_to_include.columns:
+                del df_to_include['GPSTime']
+
+            # Get the timestamps in the right time zone
+            df_to_include['CurrTimestamp_in_img_tz'] = (
+                df_to_include['CurrTimestamp']
+                - pd.Timedelta(self.metadata_tz_offset_in_hr, 'hr')
+            )
+            df_to_include = df_to_include.dropna(
+                subset=['CurrTimestamp_in_img_tz']
+            ).set_index('CurrTimestamp_in_img_tz').sort_index()
+            df_to_include['timestamp_int_{}'.format(source_log_name)] = \
+                df_to_include['CurrTimestamp'].astype(int)
+            del df_to_include['CurrTimestamp']
+
+            # Interpolate
+            interp_fn = scipy.interpolate.interp1d(
+                df_to_include.index.astype(int),
+                df_to_include.values.transpose()
+            )
+            interped = interp_fn(img_log_df['timestamp'].astype(int))
+            df_interped = pd.DataFrame(
+                interped.transpose(),
+                columns=df_to_include.columns
+            )
+            
+            dfs_interped.append(df_interped)
+
+        log_df = pd.concat(dfs_interped, axis='columns', )
+
+        # DEPRECATED
+        '''
+        # Set up a useful index
+        metadata['id'] = metadata.index
+        metadata = metadata.set_index(['camera_num', 'timestamp', 'id']).sort_index()
+        '''
+
+        self.log_df = log_df
+        return log_df
+
+    def prep_metadata(
+        self,
+        img_log_fp: str = None,
+        imu_log_fp: str = None,
+        gps_log_fp: str = None,
+    ):
+        '''Load the image, IMU, and GPS metadata and correlate them.
+
+        Args:
+            img_log_fp: Location of the image log.
+            imu_log_fp: Location of the IMU log.
+            gps_log_fp: Location of the GPS log.
+        '''
+
+        if img_log_fp is None:
+            img_log_fp = self.img_log_fp
+        if imu_log_fp is None:
+            imu_log_fp = self.imu_log_fp
+        if gps_log_fp is None:
+            gps_log_fp = self.gps_log_fp
+
+        img_log_df = self.load_img_log()
+        imu_log_df = self.load_imu_log()
+        gps_log_df = self.load_gps_log()
+
+        log_df = self.combine_logs(
+            img_log_df,
+            imu_log_df,
+            gps_log_df,
         )
+
+        self.log_df = log_df
+        return log_df
 
     def load_preexisting_metadata(self, fp: str = None):
 

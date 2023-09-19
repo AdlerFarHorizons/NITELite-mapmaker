@@ -23,9 +23,9 @@ class TestPrepMetadata(unittest.TestCase):
 
         self.flight = observations.Flight(
             image_dir=self.image_dir,
-            img_log_fp = img_log_fp,
-            imu_log_fp = imu_log_fp,
-            gps_log_fp = gps_log_fp,
+            img_log_fp=img_log_fp,
+            imu_log_fp=imu_log_fp,
+            gps_log_fp=gps_log_fp,
         )
 
     def test_load_img_log(self):
@@ -46,7 +46,11 @@ class TestPrepMetadata(unittest.TestCase):
 
     def test_get_combined_metadata(self):
 
-        self.flight.get_combined_metadata()
+        self.flight.load_img_log()
+        self.flight.load_imu_log()
+        self.flight.load_gps_log()
+
+        self.flight.combine_logs()
 
     def test_prep_metadata(self):
 
