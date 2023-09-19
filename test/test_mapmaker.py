@@ -25,27 +25,16 @@ class TestGlobal(unittest.TestCase):
 
         mm.mapmake()
 
-    def test_load(self):
-
-        mm = mapmaker.Mapmaker(
-            image_dir=self.image_dir,
-            metadata_fp=self.metadata_fp,
-        )
-
-        mm.load()
-
     def test_preprocess(self):
 
         mm = mapmaker.Mapmaker()
 
-        mm.load()
         mm.preprocess()
 
     def test_georeference(self):
 
         mm = mapmaker.Mapmaker()
 
-        mm.load()
         mm.preprocess()
         mm.georeference()
 
@@ -53,7 +42,6 @@ class TestGlobal(unittest.TestCase):
 
         mm = mapmaker.Mapmaker()
 
-        mm.load()
         mm.preprocess()
         mm.georeference()
         mm.construct_mosaic()

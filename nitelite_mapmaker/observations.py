@@ -16,14 +16,18 @@ class Flight:
     def __init__(
         self,
         image_dir: str,
-        metadata_fp: str,
+        image_log_fp: str,
+        imu_log_fp: str,
+        gps_log_fp: str,
         img_shape: Tuple[int, int] = (1200, 1920),
         max_val: int = 4091,
     ):
         '''
         Args:
             image_dir: Directory containing raw image files.
-            metadata_fp: Filepath to metadata file.
+            image_log_fp: Location of log containing image metadata.
+            imu_log_fp: Location of log containing IMU metadata.
+            gps_log_fp: Location of log containing GPS metadata.
             img_shape: Shape of image.
             max_val: Maximum value of raw image data. This corresponds to
                 the integer type. Defaults to 4091 = 2**12 - 1 (i.e. 12-bit).
@@ -31,14 +35,78 @@ class Flight:
         '''
 
         self.image_dir = image_dir
-        self.metadata_fp = metadata_fp
+        self.image_log_fp = image_log_fp
+        self.imu_log_fp = imu_log_fp
+        self.gps_log_fp = gps_log_fp
         self.img_shape = img_shape
         self.max_val = max_val
 
         # Get list of image filepaths.
         self.image_fps = glob.glob(os.path.join(self.image_dir, '*.raw'))
 
-    def load_metadata(self, fp: str = None):
+    def load_image_log(self, image_log_fp: str = None):
+
+        if image_log_fp is None:
+            image_log_fp = self.image_log_fp
+
+        # Load data
+        # Column names are known and input ad below.
+        image_log_df = pd.read_csv(
+            image_log_fp,
+            names=[
+                'odroid_timestamp',
+                'obc_timestamp',
+                'camera_num',
+                'serial_num',
+                'exposure_time',
+                'sequence_ind',
+                'internal_temp',
+                'filename',
+            ] + ['Unnamed: {}'.format(i + 1) for i in range(12)]
+        )
+
+        # Parse the timestamp
+        # We use a combination of the odroid timestamp and the obc
+        # timestamp because the odroid timestamp is missing the year but
+        # the obc_timestamp has the wrong month.
+        timestamp_split = image_log_df['obc_timestamp'].str.split('_')
+        image_log_df['obc_timestamp'] = pd.to_datetime(
+            timestamp_split.apply(lambda x: '_'.join(x[:2])),
+            format=' %Y%m%d_%H%M%S'
+        )
+        image_log_df['timestamp'] = pd.to_datetime(
+            image_log_df['obc_timestamp'].dt.year.astype(str)
+            + ' '
+            + image_log_df['odroid_timestamp']
+        )
+        image_log_df['timestamp_id'] = timestamp_split.apply(
+            lambda x: x[-1]
+        ).astype(int)
+
+        # Drop unnamed columns
+        image_log_df = image_log_df.drop(
+            [column for column in image_log_df.columns if 'Unnamed' in column],
+            axis='columns'
+        )
+
+        self.image_log_df = image_log_df
+        return image_log_df
+
+    def prep_metadata(self):
+        '''Load the image, IMU, and GPS metadata and correlate them.
+        '''
+
+        image_log_metadata = self.load_image_log_metadata()
+        imu_metadata = self.load_imu_metadata()
+        gps_metadata = self.load_gps_metadata()
+
+        self.metadata = self.combine_metadata(
+            image_log_metadata,
+            imu_metadata,
+            gps_metadata,
+        )
+
+    def load_preexisting_metadata(self, fp: str = None):
 
         if fp is None:
             fp = self.metadata_fp
