@@ -98,6 +98,54 @@ class Flight:
         self.img_log_df = img_log_df
         return img_log_df
 
+    def load_imu_log(self, imu_log_fp: str = None):
+
+        if imu_log_fp is None:
+            imu_log_fp = self.imu_log_fp
+
+        imu_log_df = pd.read_csv(imu_log_fp, low_memory=False)
+
+        # Remove the extra header rows, and the nan rows
+        imu_log_df.dropna(subset=['CurrTimestamp', ], inplace=True)
+        imu_log_df.drop(
+            imu_log_df.index[imu_log_df['CurrTimestamp'] == 'CurrTimestamp'],
+            inplace=True
+        )
+
+        # Handle some situations where the pressure is negative
+        ac_columns = ['TempC', 'pressure', 'mAltitude']
+        imu_log_df.loc[imu_log_df['pressure'].astype(float) < 0] = np.nan
+
+        # We'll skip this step for now because we filter on the date later
+        # DEPRECATED
+        '''
+        # Convert to datetime, toss out IMU recordings not associated with the 5-13 flight.
+        imu_log_df['CurrTimestamp'] = pd.to_datetime(imu_log_df['CurrTimestamp'])
+        imu_log_df.drop(
+            imu_log_df.index[imu_log_df['CurrTimestamp'] < pd.to_datetime('2022-5-13 20')],
+            inplace=True,
+        )
+        '''
+
+        # Sort by datetime
+        imu_log_df.sort_values('CurrTimestamp', inplace=True)
+
+        # Assign dtypes
+        skipped_cols = []
+        for column in imu_log_df.columns:
+            if column == 'CurrTimestamp':
+                continue
+                
+            imu_log_df[column] = imu_log_df[column].astype(float)
+
+        # Now also handle when the altitude or temperature are weird
+        imu_log_df.loc[imu_log_df['TempC'] < -273, ac_columns] = np.nan
+        imu_log_df.loc[imu_log_df['mAltitude'] < 0., ac_columns] = np.nan
+        imu_log_df.loc[imu_log_df['mAltitude'] > 20000., ac_columns] = np.nan
+
+        self.imu_log_df = imu_log_df
+        return imu_log_df
+
     def prep_metadata(self):
         '''Load the image, IMU, and GPS metadata and correlate them.
         '''
