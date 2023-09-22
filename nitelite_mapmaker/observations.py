@@ -244,12 +244,11 @@ class Flight:
                 interped.transpose(),
                 columns=df_to_include.columns
             )
-            
+
             dfs_interped.append(df_interped)
 
         log_df = pd.concat(dfs_interped, axis='columns', )
 
-        self.log_df = log_df
         return log_df
 
     def prep_metadata(
@@ -277,14 +276,14 @@ class Flight:
         imu_log_df = self.load_imu_log()
         gps_log_df = self.load_gps_log()
 
-        log_df = self.combine_logs(
+        metadata = self.combine_logs(
             img_log_df,
             imu_log_df,
             gps_log_df,
         )
 
-        self.log_df = log_df
-        return log_df
+        self.metadata = metadata
+        return metadata
 
     def load_preexisting_metadata(self, fp: str = None):
 
