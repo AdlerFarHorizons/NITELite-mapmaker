@@ -21,7 +21,7 @@ class Flight:
         imu_log_fp: str,
         gps_log_fp: str,
         img_shape: Tuple[int, int] = (1200, 1920),
-        max_val: int = 4091,
+        bit_precisions: dict[str, int] = {'.raw': 12, '.tiff': 16},
         metadata_tz_offset_in_hr: float = 5.,
     ):
         '''
@@ -31,9 +31,7 @@ class Flight:
             imu_log_fp: Location of log containing IMU metadata.
             gps_log_fp: Location of log containing GPS metadata.
             img_shape: Shape of image.
-            max_val: Maximum value of raw image data. This corresponds to
-                the integer type. Defaults to 4091 = 2**12 - 1 (i.e. 12-bit).
-                It's not clear why it's a 12 bit integer, but it is.
+            bit_precisions: Bit types used for the data.
         '''
 
         self.image_dir = image_dir
@@ -41,7 +39,7 @@ class Flight:
         self.imu_log_fp = imu_log_fp
         self.gps_log_fp = gps_log_fp
         self.img_shape = img_shape
-        self.max_val = max_val
+        self.bit_precisions = bit_precisions
         self.metadata_tz_offset_in_hr = metadata_tz_offset_in_hr
 
         # Get list of image filepaths.
@@ -300,30 +298,41 @@ class Flight:
 
     def get_rgb_img(self, fp: str, conversion_method: str = 'opencv'):
 
-        # Load and reshape raw image data.
-        raw_img = np.fromfile(fp, dtype=np.uint16)
-        raw_img = raw_img.reshape(self.img_shape)
+        ext = os.path.splitext(fp)[1]
 
-        # Get RGB image
-        # Good method (does interpolation).
-        if conversion_method == 'opencv':
-            img = cv2.cvtColor(raw_img, cv2.COLOR_BAYER_BG2RGB)
-        # Homebrew, understandable method.
-        elif conversion_method == 'crude':
-            # Since the raw files are bayer sampled
-            # the red pixels are at "[0::2,0::2]" locations,
-            # green are at "[0::2,1::2]" and "[1::2,0::2]",
-            # and blue at "[1::2,1::2]"
-            red = raw_img[0::2, 0::2]
-            green1 = raw_img[0::2, 1::2]
-            green2 = raw_img[1::2, 0::2]
-            green_avg = 0.5 * (green1 + green2)
-            blue = raw_img[1::2, 1::2]
-            img = np.array([red, green_avg, blue, ]).transpose(1, 2, 0)
+        # Load and reshape raw image data.
+        if ext == '.raw':
+            raw_img = np.fromfile(fp, dtype=np.uint16)
+            raw_img = raw_img.reshape(self.img_shape)
+
+            # Get RGB image
+            # Good method (does interpolation).
+            if conversion_method == 'opencv':
+                img = cv2.cvtColor(raw_img, cv2.COLOR_BAYER_BG2RGB)
+            # Homebrew, understandable method.
+            elif conversion_method == 'crude':
+                # Since the raw files are bayer sampled
+                # the red pixels are at "[0::2,0::2]" locations,
+                # green are at "[0::2,1::2]" and "[1::2,0::2]",
+                # and blue at "[1::2,1::2]"
+                red = raw_img[0::2, 0::2]
+                green1 = raw_img[0::2, 1::2]
+                green2 = raw_img[1::2, 0::2]
+                green_avg = 0.5 * (green1 + green2)
+                blue = raw_img[1::2, 1::2]
+                img = np.array([red, green_avg, blue, ]).transpose(1, 2, 0)
+            else:
+                raise ValueError('Invalid conversion method.')
+
+        elif ext == '.tiff':
+            img = cv2.imread(fp, cv2.IMREAD_UNCHANGED)
+
         else:
-            raise ValueError('Invalid conversion method.')
+            raise IOError('Cannot read filetype {}'.format(ext))
 
         # Scale RGB image to 0 to 1 for each channel.
-        img = img / self.max_val
+        # The values are saved as integers, so we need to divide out.
+        max_val = 2**self.bit_precisions[ext] - 1
+        img = img / max_val
 
         return img
