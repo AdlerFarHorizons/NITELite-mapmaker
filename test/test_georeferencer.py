@@ -49,3 +49,7 @@ class TestGlobal(unittest.TestCase):
         if original.shape == resampled.shape:
             is_matching = np.isclose(original, resampled)
             assert is_matching.sum() != is_matching.size
+
+    def test_orientation(self):
+
+        assert False
