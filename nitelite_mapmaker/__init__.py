@@ -1,1 +1,2 @@
 import nitelite_mapmaker.mapmaker
+import nitelite_mapmaker.georeference

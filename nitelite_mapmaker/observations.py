@@ -2,6 +2,7 @@
 '''
 
 from typing import Tuple
+import warnings
 
 import glob
 import os
@@ -21,7 +22,11 @@ class Flight:
         imu_log_fp: str,
         gps_log_fp: str,
         img_shape: Tuple[int, int] = (1200, 1920),
-        bit_precisions: dict[str, int] = {'.raw': 12, '.tiff': 16},
+        bit_precisions: dict[str, int] = {
+            '.raw': 12,
+            '.tiff': 16,
+            '.tif': 16,
+        },
         metadata_tz_offset_in_hr: float = 5.,
     ):
         '''
@@ -328,7 +333,7 @@ class Flight:
             else:
                 raise ValueError('Invalid conversion method.')
 
-        elif ext == '.tiff':
+        elif ext in ['.tiff', '.tif']:
             img = cv2.imread(fp, cv2.IMREAD_UNCHANGED)
 
         else:

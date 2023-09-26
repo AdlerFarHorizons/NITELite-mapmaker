@@ -41,8 +41,8 @@ class GeoReferencer:
         # Setup output image
         if res is None:
             res = np.sqrt(da)
-        x_bins = np.arange(xs.min() - res / 2., xs.max() + res / 2., res)
-        y_bins = np.arange(ys.min() - res / 2., ys.max() + res / 2., res)
+        x_bins = np.arange(xs.min() - res / 2., xs.max() + 1.1 * res / 2., res)
+        y_bins = np.arange(ys.min() - res / 2., ys.max() + 1.1 * res / 2., res)
 
         # Resample (currently just binning w/ a histogram)
         img_resampled, _, _ = np.histogram2d(
