@@ -124,7 +124,9 @@ class Flight:
         imu_log_df.loc[imu_log_df['pressure'].astype(float) < 0] = np.nan
 
         # Convert to datetime and sort
-        imu_log_df['CurrTimestamp'] = pd.to_datetime(imu_log_df['CurrTimestamp'])
+        imu_log_df['CurrTimestamp'] = pd.to_datetime(
+            imu_log_df['CurrTimestamp']
+        )
         imu_log_df.sort_values('CurrTimestamp', inplace=True)
 
         # Assign dtypes
@@ -132,7 +134,7 @@ class Flight:
         for column in imu_log_df.columns:
             if column == 'CurrTimestamp':
                 continue
-                
+
             imu_log_df[column] = imu_log_df[column].astype(float)
 
         # Now also handle when the altitude or temperature are weird
@@ -171,14 +173,16 @@ class Flight:
         )
 
         # Convert to datetime and sort
-        gps_log_df['CurrTimestamp'] = pd.to_datetime(gps_log_df['CurrTimestamp'])
+        gps_log_df['CurrTimestamp'] = pd.to_datetime(
+            gps_log_df['CurrTimestamp']
+        )
         gps_log_df.sort_values('CurrTimestamp', inplace=True)
 
         # Assign dtypes
         for column in gps_log_df.columns:
             if column in ['CurrTimestamp', 'GPSTime']:
                 continue
-                
+
             gps_log_df[column] = gps_log_df[column].astype(float)
 
         self.gps_log_df = gps_log_df
@@ -212,7 +216,7 @@ class Flight:
         dfs_interped = [img_log_df, ]
         source_log_names = ['imu', 'gps']
         for i, df_to_include in enumerate([imu_log_df, gps_log_df]):
-            
+
             source_log_name = source_log_names[i]
             df_to_include = df_to_include.copy()
 
