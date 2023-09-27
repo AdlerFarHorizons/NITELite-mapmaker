@@ -6,12 +6,16 @@ from typing import Tuple
 import numpy as np
 
 
-class GeoReferencer:
+class ImageTransformer:
+    '''Transforms images as needed to accompany geo-referencing.
+    '''
+
+    def __init__(self, img):
+
+        self.img = img
 
     def resample(
         self,
-        points: list[np.ndarray, np.ndarray],
-        img: np.ndarray,
         res: float = None,
     ) -> Tuple[list[np.ndarray, np.ndarray], np.ndarray]:
         '''
@@ -31,12 +35,12 @@ class GeoReferencer:
         '''
 
         # Calculate the weights (flux-conserved)
-        xs, ys = points
+        xs, ys = self.points
         da = np.linalg.norm(np.cross(
             [xs[0, 1] - xs[0, 0], ys[0, 1] - ys[0, 0]],
             [xs[1, 0] - xs[0, 0], ys[1, 0] - ys[0, 0]],
         ))
-        weights = img.flatten() * da
+        weights = self.img.flatten() * da
 
         # Setup output image
         if res is None:
@@ -60,4 +64,7 @@ class GeoReferencer:
         xs_resampled = 0.5 * (x_bins[:-1] + x_bins[1:])
         ys_resampled = 0.5 * (y_bins[:-1] + y_bins[1:])
 
-        return (xs_resampled, ys_resampled), img_resampled
+        self.points_resampled = (xs_resampled, ys_resampled)
+        self.img_resampled = img_resampled
+
+        return self.points_resampled, self.img_resampled
