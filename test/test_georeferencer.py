@@ -20,23 +20,23 @@ class TestResample(unittest.TestCase):
         xs_img_frame,
         ys_img_frame,
         theta=np.pi / 4.,
-        ll_coords=np.array([1., 2.])
+        ll_coords=np.array([1., 2.]),
     ):
 
-        xs_img_frame_mesh, ys_img_frame_mesh = np.meshgrid(
+        xs_img_frame, ys_img_frame = np.meshgrid(
             xs_img_frame,
             ys_img_frame
         )
 
         xs = (
             ll_coords[0]
-            + xs_img_frame_mesh * np.cos(theta)
-            + ys_img_frame_mesh * np.sin(theta)
+            + xs_img_frame * np.cos(theta)
+            + ys_img_frame * np.sin(theta)
         )
         ys = (
             ll_coords[1]
-            + xs_img_frame_mesh * np.sin(-theta)
-            + ys_img_frame_mesh * np.cos(theta)
+            + xs_img_frame * np.sin(-theta)
+            + ys_img_frame * np.cos(theta)
         )
 
         return xs, ys
@@ -118,8 +118,29 @@ class TestResample(unittest.TestCase):
 
         points_resampled, resampled = itrans.resample()
 
+        # Check the orientation
+        xs_high = itrans.points[0][original > 0.5]
+        ys_high = itrans.points[1][original > 0.5]
+        high_bounds = [
+            [np.min(xs_high), np.max(xs_high)],
+            [np.min(ys_high), np.max(ys_high)],
+        ]
+        xs_resampled_mesh, ys_resampled_mesh = np.meshgrid(
+            points_resampled[0],
+            points_resampled[1],
+        )
+        xs_high_resampled = xs_resampled_mesh[resampled > 0.5]
+        ys_high_resampled = ys_resampled_mesh[resampled > 0.5]
+        high_bounds_resampled = [
+            [np.min(xs_high_resampled), np.max(xs_high_resampled)],
+            [np.min(ys_high_resampled), np.max(ys_high_resampled)],
+        ]
+        np.testing.assert_allclose(high_bounds, high_bounds_resampled)
+
         self.check_integrals_and_values(
             xs_original_frame,
             ys_original_frame,
             itrans,
         )
+
+
