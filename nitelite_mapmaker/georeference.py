@@ -17,18 +17,32 @@ class ImageTransformer:
     def resample(
         self,
         points: list[np.ndarray, np.ndarray] = None,
-        points_resampled: list[np.ndarray, np.ndarray] = None
+        bins: list[np.ndarray, np.ndarray] = None,
+        preserve_flux: bool = True
     ) -> Tuple[list[np.ndarray, np.ndarray], np.ndarray]:
         '''
+        Perform a nearest-grid-point resample to rotate the array axes
+        to be parallel to the coordinate system axes.
+
+        GDAL (and other libraries, e.g. satpy) have much more thorough
+        implementations that should be used for the final product.
+
         Args:
-            points: x and y values for the pixels. Currently assumed that
-                the grid is rectilinear. Adapting the code to work with
-                non-rectilinear points may require doing an average of the
-                cross products between neighboring pixels (to get the area)
-                or using a triangulated irregular network.
-            img: The array values themselves
-            res: 1D resolution of the output. Currently defaults to the
-                geometric mean of the input image x and y resoluion.
+            points:
+                x and y values for the pixels pre-resampling.
+                Currently assumed that the grid is rectilinear. Adapting the
+                code to work with non-rectilinear points may require doing an
+                average of the cross products between neighboring pixels
+                (to get the area) or using a triangulated irregular network.
+            bins:
+                x and y bins the array will be sampled onto.
+                Defaults to slightly fewer pixels than the current image has.
+                This does a nice job of preserving the image appearance,
+                but introduces aliasing issues.
+            preserve_flux:
+                If True, deposit onto the new grid the value multiplied by
+                the area, and return the deposited values scaled by the new
+                pixel areas.
 
         Returns:
             points_resampled: x and y values for the resampled pixels.
@@ -40,40 +54,50 @@ class ImageTransformer:
         xs, ys = points
 
         # Setup output image
-        if points_resampled is None:
-            dx = np.max(np.abs(np.diff(xs)))
-            dy = np.max(np.abs(np.diff(ys)))
-            x_bins = np.arange(
+        if bins is None:
+
+            # This is an alternative that uses the nyquist frequency
+            # dx = np.min(np.abs(np.diff(xs, axis=1))) / 2.
+            # dy = np.min(np.abs(np.diff(ys, axis=0))) / 2.
+            # x_bins = np.arange(
+            #     xs.min() - dx / 2.,
+            #     xs.max() + dx,
+            #     dx
+            # )
+            # y_bins = np.arange(
+            #     ys.min() - dy / 2.,
+            #     ys.max() + dy,
+            #     dy
+            # )
+
+            dx = np.mean(np.abs(np.diff(xs, axis=1)))
+            dy = np.mean(np.abs(np.diff(xs, axis=1)))
+            x_bins = np.linspace(
                 xs.min() - dx / 2.,
-                xs.max() + 1.1 * dx / 2.,
-                dx
+                xs.max() + dx,
+                int(np.floor(self.img.shape[1] * 0.99)),
             )
-            y_bins = np.arange(
+            y_bins = np.linspace(
                 ys.min() - dy / 2.,
-                ys.max() + 1.1 * dy / 2.,
-                dy
+                ys.max() + dy,
+                int(np.floor(self.img.shape[0] * 0.99)),
             )
             xs_resampled = 0.5 * (x_bins[:-1] + x_bins[1:])
             ys_resampled = 0.5 * (y_bins[:-1] + y_bins[1:])
         else:
-            xs_resampled, ys_resampled = points_resampled
-
-            dx = xs_resampled[1] - xs_resampled[0]
-            x_bins = np.empty(xs_resampled.size + 1)
-            x_bins[:-1] = xs_resampled - dx / 2.
-            x_bins[-1] = xs_resampled[-1] + dx / 2.
-
-            dy = ys_resampled[1] - ys_resampled[0]
-            y_bins = np.empty(ys_resampled.size + 1)
-            y_bins[:-1] = ys_resampled - dy / 2.
-            y_bins[-1] = ys_resampled[-1] + dy / 2.
+            x_bins, y_bins = bins
+            xs_resampled = 0.5 * (x_bins[:-1] + x_bins[1:])
+            ys_resampled = 0.5 * (y_bins[:-1] + y_bins[1:])
 
         # Calculate the weights (flux-conserved)
-        da = np.linalg.norm(np.cross(
-            [xs[0, 1] - xs[0, 0], ys[0, 1] - ys[0, 0]],
-            [xs[1, 0] - xs[0, 0], ys[1, 0] - ys[0, 0]],
-        ))
-        weights = self.img.flatten() * da
+        if preserve_flux:
+            da = np.linalg.norm(np.cross(
+                [xs[0, 1] - xs[0, 0], ys[0, 1] - ys[0, 0]],
+                [xs[1, 0] - xs[0, 0], ys[1, 0] - ys[0, 0]],
+            ))
+            weights = self.img.flatten() * da
+        else:
+            weights = self.img.flatten()
 
         # Resample (currently just binning w/ a histogram)
         img_resampled, _, _ = np.histogram2d(
@@ -84,13 +108,15 @@ class ImageTransformer:
         )
 
         # Normalize bins
-        da_resampled = (x_bins[1] - x_bins[0]) * (y_bins[1] - y_bins[0])
-        img_resampled /= da_resampled
+        if preserve_flux:
+            da_resampled = (x_bins[1] - x_bins[0]) * (y_bins[1] - y_bins[0])
+            img_resampled /= da_resampled
 
         # Transpose, because histogram order is weird
         img_resampled = img_resampled.transpose()
 
         self.points_resampled = (xs_resampled, ys_resampled)
+        self.bins = (x_bins, y_bins)
         self.img_resampled = img_resampled
 
         return self.points_resampled, self.img_resampled
