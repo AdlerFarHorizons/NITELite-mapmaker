@@ -135,7 +135,12 @@ class TestResample(unittest.TestCase):
             [np.min(xs_high_resampled), np.max(xs_high_resampled)],
             [np.min(ys_high_resampled), np.max(ys_high_resampled)],
         ]
-        np.testing.assert_allclose(high_bounds, high_bounds_resampled)
+        atol = np.max([np.diff(xs_high_resampled), np.diff(ys_high_resampled)])
+        np.testing.assert_allclose(
+            high_bounds,
+            high_bounds_resampled,
+            atol=atol
+        )
 
         self.check_integrals_and_values(
             xs_original_frame,

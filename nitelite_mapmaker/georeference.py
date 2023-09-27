@@ -34,8 +34,10 @@ class ImageTransformer:
             points_resampled: x and y values for the resampled pixels.
             img_resampled: Resampled image.
         '''
+
         if points is None:
-            xs, ys = self.points
+            points = self.points
+        xs, ys = points
 
         # Setup output image
         if points_resampled is None:
@@ -84,6 +86,9 @@ class ImageTransformer:
         # Normalize bins
         da_resampled = (x_bins[1] - x_bins[0]) * (y_bins[1] - y_bins[0])
         img_resampled /= da_resampled
+
+        # Transpose, because histogram order is weird
+        img_resampled = img_resampled.transpose()
 
         self.points_resampled = (xs_resampled, ys_resampled)
         self.img_resampled = img_resampled
