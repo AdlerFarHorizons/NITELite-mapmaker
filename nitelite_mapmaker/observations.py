@@ -95,7 +95,7 @@ class Flight:
             lambda x: x[-1]
         ).astype(int)
         # Correct for overflow
-        img_log_df['timestamp_id'][img_log_df['timestamp_id'] < 0] += 2**32
+        img_log_df.loc[img_log_df['timestamp_id'] < 0, 'timestamp_id'] += 2**32
 
         # Drop unnamed columns
         img_log_df = img_log_df.drop(
