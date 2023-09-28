@@ -142,7 +142,7 @@ class ImageTransformer:
         if return_counts:
             self.counts_resampled = resample_fn(
                 np.ones(self.img.shape[:2])
-            )
+            ).astype(int)
             return (
                 self.points_resampled,
                 self.img_resampled,

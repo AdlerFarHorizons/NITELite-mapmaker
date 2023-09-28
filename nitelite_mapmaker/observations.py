@@ -94,6 +94,8 @@ class Flight:
         img_log_df['timestamp_id'] = timestamp_split.apply(
             lambda x: x[-1]
         ).astype(int)
+        # Correct for overflow
+        img_log_df['timestamp_id'][img_log_df['timestamp_id'] < 0] += 2**32
 
         # Drop unnamed columns
         img_log_df = img_log_df.drop(
@@ -291,6 +293,52 @@ class Flight:
 
         self.metadata = metadata
         return metadata
+
+    def get_manually_georeferenced_filepaths(
+        self,
+        manually_georeferenced_dir: str
+    ) -> pd.Series:
+        '''Associate the image files with image files that have been
+        manually georeferenced, assuming the timestamp is reliable.
+
+        Args:
+            manually_georeferenced_dir:
+                Location of the manually-georeferenced files.
+
+        Returns:
+            manually_referenced_fps:
+                Filepath containing the manually-georeferenced file for each
+                image, if it exists. Invalids are marked with pd.NA.
+        '''
+
+        # Get the timestamp IDs for the manually-referenced images
+        man_fps = glob.glob(os.path.join(manually_georeferenced_dir, '*.tif'))
+        man_fps = pd.Series(man_fps)
+        man_ts_ids = man_fps.str.findall(
+            r'(\d+)_\d.*.tif'
+        ).str[0].astype('Int64')
+
+        # Create a dataframe to work with
+        man_df = pd.DataFrame(
+            {
+                'manually_referenced_fp': man_fps,
+                'timestamp_id': man_ts_ids,
+            }
+        )
+        man_df = man_df.drop_duplicates('timestamp_id')
+        man_df.set_index('timestamp_id', inplace=True)
+
+        # Correlate
+        is_mr = self.metadata['timestamp_id'].isin(man_df.index)
+        found_ts_ids = self.metadata['timestamp_id'].loc[is_mr].values
+        found_man_fps = man_df.loc[found_ts_ids, 'manually_referenced_fp']
+        found_man_fps = found_man_fps.values
+
+        # Add a new column to the metadata
+        self.metadata['manually_referenced_fp'] = pd.NA
+        self.metadata.loc[is_mr, 'manually_referenced_fp'] = found_man_fps
+
+        return self.metadata['manually_referenced_fp']
 
     def load_preexisting_metadata(self, fp: str = None):
 

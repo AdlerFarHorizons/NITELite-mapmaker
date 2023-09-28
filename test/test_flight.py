@@ -15,8 +15,16 @@ class TestPrepMetadata(unittest.TestCase):
 
         flight_name = '220513-FH135'
         self.metadata_dir = os.path.join('./test/test_data', flight_name)
-        self.image_dir = os.path.join('./test/test_data', flight_name,
-                                      'images/23085686')
+        self.image_dir = os.path.join(
+            './test/test_data',
+            flight_name,
+            'images/23085686'
+        )
+        self.manually_referenced_dir = os.path.join(
+            './test/test_data',
+            flight_name,
+            'images/manually_referenced'
+        )
         img_log_fp = os.path.join(self.metadata_dir, 'image.log')
         imu_log_fp = os.path.join(self.metadata_dir, 'OBC/PresIMULog.csv')
         gps_log_fp = os.path.join(self.metadata_dir, 'OBC/GPSLog.csv')
@@ -55,3 +63,10 @@ class TestPrepMetadata(unittest.TestCase):
     def test_prep_metadata(self):
 
         self.flight.prep_metadata()
+
+    def test_get_manually_georeferenced_filepaths(self):
+
+        self.flight.prep_metadata()
+        self.flight.get_manually_georeferenced_filepaths(
+            self.manually_referenced_dir
+        )
