@@ -67,6 +67,12 @@ class TestPrepMetadata(unittest.TestCase):
     def test_get_manually_georeferenced_filepaths(self):
 
         self.flight.prep_metadata()
-        self.flight.get_manually_georeferenced_filepaths(
-            self.manually_referenced_dir
+        fps = self.flight.get_manually_georeferenced_filepaths(
+            self.manually_referenced_dir,
+            camera_num=0,
         )
+        fp_camera_num = fps[fps.notna()].str.findall(
+            r'(\d).tif'
+        ).str[-1].astype(int)
+        n_bad = (fp_camera_num != 0).sum()
+        assert n_bad == 0

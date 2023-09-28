@@ -296,7 +296,8 @@ class Flight:
 
     def get_manually_georeferenced_filepaths(
         self,
-        manually_georeferenced_dir: str
+        manually_georeferenced_dir: str,
+        camera_num: int = 1,
     ) -> pd.Series:
         '''Associate the image files with image files that have been
         manually georeferenced, assuming the timestamp is reliable.
@@ -304,6 +305,8 @@ class Flight:
         Args:
             manually_georeferenced_dir:
                 Location of the manually-georeferenced files.
+            camera_num:
+                What camera to use.
 
         Returns:
             manually_referenced_fps:
@@ -314,9 +317,8 @@ class Flight:
         # Get the timestamp IDs for the manually-referenced images
         man_fps = glob.glob(os.path.join(manually_georeferenced_dir, '*.tif'))
         man_fps = pd.Series(man_fps)
-        man_ts_ids = man_fps.str.findall(
-            r'(\d+)_\d.*.tif'
-        ).str[0].astype('Int64')
+        pattern = r'(\d+)_{}.*.tif'.format(camera_num)
+        man_ts_ids = man_fps.str.findall(pattern).str[0].astype('Int64')
 
         # Create a dataframe to work with
         man_df = pd.DataFrame(
