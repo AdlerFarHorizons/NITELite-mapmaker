@@ -18,7 +18,8 @@ class ImageTransformer:
         self,
         points: list[np.ndarray, np.ndarray] = None,
         bins: list[np.ndarray, np.ndarray] = None,
-        preserve_flux: bool = True
+        preserve_flux: bool = True,
+        return_counts: bool = False,
     ) -> Tuple[list[np.ndarray, np.ndarray], np.ndarray]:
         '''
         Perform a nearest-grid-point resample to rotate the array axes
@@ -43,6 +44,10 @@ class ImageTransformer:
                 If True, deposit onto the new grid the value multiplied by
                 the area, and return the deposited values scaled by the new
                 pixel areas.
+            return_counts:
+                If True, also return an array indicating how many pixels
+                were deposited onto each of the resampled values.
+                This is essential for e.g. mosaic averaging.
 
         Returns:
             points_resampled: x and y values for the resampled pixels.
@@ -99,10 +104,16 @@ class ImageTransformer:
                 bins=[x_bins, y_bins],
                 weights=img.flatten()
             )
+
+            # Transpose, because histogram order is weird
+            img_resampled = img_resampled.transpose()
+
             return img_resampled
 
+        # No bands case.
         if len(self.img.shape) == 2:
             img_resampled = resample_fn(self.img)
+        # Color image case.
         elif len(self.img.shape) == 3:
             img_resampled = np.array([
                 resample_fn(self.img[:, :, i])
@@ -124,11 +135,18 @@ class ImageTransformer:
             da_resampled = (x_bins[1] - x_bins[0]) * (y_bins[1] - y_bins[0])
             img_resampled *= da / da_resampled
 
-        # Transpose, because histogram order is weird
-        img_resampled = img_resampled.transpose()
-
         self.points_resampled = (xs_resampled, ys_resampled)
         self.bins = (x_bins, y_bins)
         self.img_resampled = img_resampled
 
-        return self.points_resampled, self.img_resampled
+        if return_counts:
+            self.counts_resampled = resample_fn(
+                np.ones(self.img.shape[:2])
+            )
+            return (
+                self.points_resampled,
+                self.img_resampled,
+                self.counts_resampled
+            )
+        else:
+            return self.points_resampled, self.img_resampled

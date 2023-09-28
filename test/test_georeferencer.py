@@ -211,7 +211,9 @@ class TestResample(unittest.TestCase):
             ys_original_frame
         )
 
-        points_resampled, resampled = itrans.resample()
+        points_resampled, resampled, counts = itrans.resample(
+            return_counts=True
+        )
 
         self.check_integrals_and_values(
             xs_original_frame,
