@@ -389,6 +389,9 @@ class Flight:
         else:
             raise IOError('Cannot read filetype {}'.format(ext))
 
+        if img is None:
+            return img
+
         # Scale RGB image to 0 to 1 for each channel.
         # The values are saved as integers, so we need to divide out.
         max_val = 2**self.bit_precisions[ext] - 1
