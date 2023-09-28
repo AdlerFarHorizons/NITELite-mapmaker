@@ -1,12 +1,13 @@
 '''Test file for georeferencing
 '''
 
+import glob
 import os
 import unittest
 
 import numpy as np
 
-from nitelite_mapmaker import georeference
+from nitelite_mapmaker import georeference, observations
 
 
 class TestResample(unittest.TestCase):
@@ -85,8 +86,8 @@ class TestResample(unittest.TestCase):
         '''
 
         original = self.rng.uniform(size=(4, 6))
-        xs_original_frame = np.linspace(0., 10., original.shape[1])
-        ys_original_frame = np.linspace(0., 10., original.shape[0])
+        xs_original_frame = np.linspace(0., 1., original.shape[1])
+        ys_original_frame = np.linspace(0., 1., original.shape[0])
 
         itrans = georeference.ImageTransformer(original)
         itrans.points = self.get_rotated_coords(
@@ -140,8 +141,8 @@ class TestResample(unittest.TestCase):
         original = np.zeros(shape)
         original[:shape[0] // 2, :shape[1] // 3] = 1
 
-        xs_original_frame = np.linspace(0., 10., original.shape[1])
-        ys_original_frame = np.linspace(0., 10., original.shape[0])
+        xs_original_frame = np.linspace(0., 1., original.shape[1])
+        ys_original_frame = np.linspace(0., 1., original.shape[0])
 
         itrans = georeference.ImageTransformer(original)
         itrans.points = self.get_rotated_coords(
@@ -181,4 +182,39 @@ class TestResample(unittest.TestCase):
             itrans,
         )
 
+    def test_actual(self):
 
+        flight_name = '220513-FH135'
+        self.metadata_dir = os.path.join('./test/test_data', flight_name)
+        self.image_dir = os.path.join('./test/test_data', flight_name,
+                                      'images/23085686')
+        img_log_fp = os.path.join(self.metadata_dir, 'image.log')
+        imu_log_fp = os.path.join(self.metadata_dir, 'OBC/PresIMULog.csv')
+        gps_log_fp = os.path.join(self.metadata_dir, 'OBC/GPSLog.csv')
+
+        flight = observations.Flight(
+            image_dir=self.image_dir,
+            img_log_fp=img_log_fp,
+            imu_log_fp=imu_log_fp,
+            gps_log_fp=gps_log_fp,
+        )
+
+        fp = self.rng.choice(glob.glob(os.path.join(self.image_dir, '*.raw')))
+        original = flight.get_rgb_img(fp)
+
+        xs_original_frame = np.linspace(0., 1., original.shape[1])
+        ys_original_frame = np.linspace(0., 1., original.shape[0])
+
+        itrans = georeference.ImageTransformer(original)
+        itrans.points = self.get_rotated_coords(
+            xs_original_frame,
+            ys_original_frame
+        )
+
+        points_resampled, resampled = itrans.resample()
+
+        self.check_integrals_and_values(
+            xs_original_frame,
+            ys_original_frame,
+            itrans,
+        )

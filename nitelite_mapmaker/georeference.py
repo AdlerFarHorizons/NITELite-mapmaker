@@ -89,28 +89,40 @@ class ImageTransformer:
             xs_resampled = 0.5 * (x_bins[:-1] + x_bins[1:])
             ys_resampled = 0.5 * (y_bins[:-1] + y_bins[1:])
 
-        # Calculate the weights (flux-conserved)
+        def resample_fn(img):
+            '''Actual function for the resampling.
+            Currently just a histogram binning, i.e. nearest grid point.
+            '''
+            img_resampled, _, _ = np.histogram2d(
+                xs.flatten(),
+                ys.flatten(),
+                bins=[x_bins, y_bins],
+                weights=img.flatten()
+            )
+            return img_resampled
+
+        if len(self.img.shape) == 2:
+            img_resampled = resample_fn(self.img)
+        elif len(self.img.shape) == 3:
+            img_resampled = np.array([
+                resample_fn(self.img[:, :, i])
+                for i in range(self.img.shape[2])
+            ])
+            img_resampled = img_resampled.transpose(1, 2, 0)
+        else:
+            raise ValueError(
+                'Unexpected shape for self.img. Resample works with 2D images'
+                ' or 2D images with multiple bands (3 dimensions).'
+            )
+
+        # Normalize bins
         if preserve_flux:
             da = np.linalg.norm(np.cross(
                 [xs[0, 1] - xs[0, 0], ys[0, 1] - ys[0, 0]],
                 [xs[1, 0] - xs[0, 0], ys[1, 0] - ys[0, 0]],
             ))
-            weights = self.img.flatten() * da
-        else:
-            weights = self.img.flatten()
-
-        # Resample (currently just binning w/ a histogram)
-        img_resampled, _, _ = np.histogram2d(
-            xs.flatten(),
-            ys.flatten(),
-            bins=[x_bins, y_bins],
-            weights=weights
-        )
-
-        # Normalize bins
-        if preserve_flux:
             da_resampled = (x_bins[1] - x_bins[0]) * (y_bins[1] - y_bins[0])
-            img_resampled /= da_resampled
+            img_resampled *= da / da_resampled
 
         # Transpose, because histogram order is weird
         img_resampled = img_resampled.transpose()
