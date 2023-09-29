@@ -265,7 +265,7 @@ class Flight:
         img_log_fp: str = None,
         imu_log_fp: str = None,
         gps_log_fp: str = None,
-    ):
+    ) -> pd.DataFrame:
         '''Load the image, IMU, and GPS metadata and correlate them.
 
         Args:
@@ -342,7 +342,7 @@ class Flight:
 
         return self.metadata['manually_referenced_fp']
 
-    def load_preexisting_metadata(self, fp: str = None):
+    def load_preexisting_metadata(self, fp: str = None) -> pd.DataFrame:
 
         if fp is None:
             fp = self.metadata_fp
@@ -355,7 +355,22 @@ class Flight:
         self.metadata = metadata
         return metadata
 
-    def get_rgb_img(self, fp: str, conversion_method: str = 'opencv'):
+    def get_rgb_img(
+        self,
+        fp: str,
+        conversion_method: str = 'opencv'
+    ) -> np.ndarray[float]:
+        '''Load one of the images.
+
+        Args:
+            fp: Image location.
+            conversion_method: How to convert the raw images. Options are
+                'opencv': Let opencv do the work.
+                'crude': Homebrewed method for verification.
+
+        Returns:
+            img: (n,m,3) array containing the image in RGB format
+        '''
 
         ext = os.path.splitext(fp)[1]
 
@@ -385,7 +400,8 @@ class Flight:
 
         elif ext in ['.tiff', '.tif']:
             img = cv2.imread(fp, cv2.IMREAD_UNCHANGED)
-            # Somehow this got mixed up.
+
+            # CV2 defaults to BGR, but RGB is more standard for our purposes
             img = img[:, :, ::-1]
 
         else:
@@ -398,5 +414,8 @@ class Flight:
         # The values are saved as integers, so we need to divide out.
         max_val = 2**self.bit_precisions[ext] - 1
         img = img / max_val
+
+        # float32 is what OpenCV expects
+        img = img.astype('float32')
 
         return img
