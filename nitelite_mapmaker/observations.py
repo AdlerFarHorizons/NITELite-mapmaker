@@ -385,6 +385,8 @@ class Flight:
 
         elif ext in ['.tiff', '.tif']:
             img = cv2.imread(fp, cv2.IMREAD_UNCHANGED)
+            # Somehow this got mixed up.
+            img = img[:,:,::-1]
 
         else:
             raise IOError('Cannot read filetype {}'.format(ext))
