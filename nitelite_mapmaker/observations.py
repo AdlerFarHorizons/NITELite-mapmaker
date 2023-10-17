@@ -106,12 +106,21 @@ class Flight:
         )
 
         # Get filepaths
-        def get_filepath(original_filename):
+        def get_filepath(filename):
             return os.path.join(
                 self.image_dir,
-                os.path.basename(original_filename)
+                filename,
             )
+        img_log_df['obc_filename'] = img_log_df['filename'].copy()
+        img_log_df['filename'] = img_log_df['obc_filename'].apply(
+            os.path.basename
+        )
         img_log_df['filepath'] = img_log_df['filename'].apply(get_filepath)
+        # TODO: Currently flight only deals with one camera at a time.
+        # Filepaths that are for other cameras are invalid.
+        img_log_df['valid_filepath'] = img_log_df['filename'].isin(
+            os.listdir(self.image_dir)
+        )
 
         self.img_log_df = img_log_df
         return img_log_df
@@ -397,6 +406,15 @@ class Flight:
 class Observation:
 
     def __init__(self, flight: Flight, ind: int, *args, **kwargs):
+        '''Class for handling individual observations.
+        Not intended for use independent of a flight.
+        
+        Args:
+            flight: The flight this image was taken as part of.
+            ind: The index of this observation
+        Kwargs:
+        Returns:
+        '''
         self.flight = flight
         self.ind = ind
         self.img_shape = self.flight.img_shape
@@ -451,53 +469,12 @@ class Observation:
 
         fp = self.metadata['filepath']
 
-        ext = os.path.splitext(fp)[1]
-
-        # Load and reshape raw image data.
-        if ext == '.raw':
-            raw_img = np.fromfile(fp, dtype=np.uint16)
-            raw_img = raw_img.reshape(self.img_shape)
-
-            # Get RGB image
-            # Good method (does interpolation).
-            if conversion_method == 'opencv':
-                img = cv2.cvtColor(raw_img, cv2.COLOR_BAYER_BG2RGB)
-            # Homebrew, understandable method.
-            elif conversion_method == 'crude':
-                # Since the raw files are bayer sampled
-                # the red pixels are at "[0::2,0::2]" locations,
-                # green are at "[0::2,1::2]" and "[1::2,0::2]",
-                # and blue at "[1::2,1::2]"
-                red = raw_img[0::2, 0::2]
-                green1 = raw_img[0::2, 1::2]
-                green2 = raw_img[1::2, 0::2]
-                green_avg = 0.5 * (green1 + green2)
-                blue = raw_img[1::2, 1::2]
-                img = np.array([red, green_avg, blue, ]).transpose(1, 2, 0)
-            else:
-                raise ValueError('Invalid conversion method.')
-
-        elif ext in ['.tiff', '.tif']:
-            img = cv2.imread(fp, cv2.IMREAD_UNCHANGED)
-
-            # CV2 defaults to BGR, but RGB is more standard for our purposes
-            img = img[:, :, ::-1]
-
-        else:
-            raise IOError('Cannot read filetype {}'.format(ext))
-
-        if img is None:
-            return img
-
-        # Scale RGB image to 0 to 1 for each channel.
-        # The values are saved as integers, so we need to divide out.
-        max_val = 2**self.bit_precisions[ext] - 1
-        img = img / max_val
-
-        # float32 is what OpenCV expects
-        img = img.astype('float32')
-
-        return img
+        return load_rgb_img(
+            fp,
+            img_shape=self.img_shape,
+            bit_precisions=self.bit_precisions,
+            conversion_method=conversion_method,
+        )
 
     def get_img_int(self, *args, **kwargs) -> np.ndarray[int]:
 
@@ -537,3 +514,62 @@ class ReferencedObservation(Observation):
             img = np.rot90(img, k_rot)
 
         return img
+
+
+def load_rgb_img(
+    fp: str,
+    img_shape: Tuple,
+    bit_precisions: dict[int],
+    conversion_method: str = 'opencv',
+) -> np.ndarray[float]:
+    '''General function for loading an rgb image from file,
+    with minimal defaults. Not specific to a particular flight.
+    '''
+
+    ext = os.path.splitext(fp)[1]
+
+    # Load and reshape raw image data.
+    if ext == '.raw':
+        raw_img = np.fromfile(fp, dtype=np.uint16)
+        raw_img = raw_img.reshape(img_shape)
+
+        # Get RGB image
+        # Good method (does interpolation).
+        if conversion_method == 'opencv':
+            img = cv2.cvtColor(raw_img, cv2.COLOR_BAYER_BG2RGB)
+        # Homebrew, understandable method.
+        elif conversion_method == 'crude':
+            # Since the raw files are bayer sampled
+            # the red pixels are at "[0::2,0::2]" locations,
+            # green are at "[0::2,1::2]" and "[1::2,0::2]",
+            # and blue at "[1::2,1::2]"
+            red = raw_img[0::2, 0::2]
+            green1 = raw_img[0::2, 1::2]
+            green2 = raw_img[1::2, 0::2]
+            green_avg = 0.5 * (green1 + green2)
+            blue = raw_img[1::2, 1::2]
+            img = np.array([red, green_avg, blue, ]).transpose(1, 2, 0)
+        else:
+            raise ValueError('Invalid conversion method.')
+
+    elif ext in ['.tiff', '.tif']:
+        img = cv2.imread(fp, cv2.IMREAD_UNCHANGED)
+
+        # CV2 defaults to BGR, but RGB is more standard for our purposes
+        img = img[:, :, ::-1]
+
+    else:
+        raise IOError('Cannot read filetype {}'.format(ext))
+
+    if img is None:
+        return img
+
+    # Scale RGB image to 0 to 1 for each channel.
+    # The values are saved as integers, so we need to divide out.
+    max_val = 2 ** bit_precisions[ext] - 1
+    img = img / max_val
+
+    # float32 is what OpenCV expects
+    img = img.astype('float32')
+
+    return img
