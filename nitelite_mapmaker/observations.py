@@ -372,12 +372,26 @@ class Flight:
             fn_matches = self.metadata['filename'].str.find(ind_or_fn) != -1
             ind = self.metadata.index[fn_matches][0]
         # Use the passed-in ind
-        elif isinstance(ind_or_fn, int):
-            ind = ind_or_fn
         else:
-            raise TypeError(f'Expected int or str, got {type(ind_or_fn)}')
+            ind = ind_or_fn
 
         return Observation(self, ind)
+
+    def get_referenced_observation(self, ind_or_fn: Union[int, str]):
+        '''
+        TODO: Combine this with get_observation?
+        '''
+
+        # Identify the matching ind
+        if isinstance(ind_or_fn, str):
+            fps = self.metadata['manually_referenced_fp']
+            fn_matches = fps.str.find(ind_or_fn) != -1
+            ind = self.metadata.index[fn_matches][0]
+        # Use the passed-in ind
+        else:
+            ind = ind_or_fn
+
+        return ReferencedObservation(self, ind)
 
 
 class Observation:
@@ -405,7 +419,6 @@ class Observation:
         '''Load one of the images.
 
         Args:
-            fp: Image location.
             conversion_method: How to convert the raw images. Options are
                 'opencv': Let opencv do the work.
                 'crude': Homebrewed method for verification.
@@ -460,6 +473,42 @@ class Observation:
         img = img / max_val
 
         # float32 is what OpenCV expects
-        img = img.astype('float32')
+        self.img = img.astype('float32')
 
-        return img
+        return self.img
+
+    def get_img_int(self, *args, **kwargs) -> np.ndarray[int]:
+
+        if not hasattr(self, 'img'):
+            self.get_img(*args, **kwargs)
+
+        self.img_int = cv2.normalize(
+            self.img,
+            None,
+            alpha=0,
+            beta=255,
+            norm_type=cv2.NORM_MINMAX,
+            dtype=cv2.CV_8U
+        )
+
+        return self.img_int
+
+
+class ReferencedObservation(Observation):
+
+    def get_img(self, k_rot=0):
+
+        fp = self.metadata['manually_referenced_fp']
+
+        # Load the manually-referenced image
+        img = cv2.imread(fp, cv2.IMREAD_UNCHANGED)
+        img = img[:, :, ::-1] / 2**16  # Formatting
+
+        # We can rotate man_img to make the alignment just a bit closer to
+        # the natural alignment of the unreffed image
+        if k_rot != 0:
+            img = np.rot90(img, k_rot)
+
+        self.img = img
+
+        return self.img

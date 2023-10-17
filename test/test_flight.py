@@ -70,6 +70,7 @@ class TestPrepMetadata(unittest.TestCase):
         self.flight.prep_metadata()
 
     def test_get_manually_georeferenced_filepaths(self):
+        '''TODO: Get rid of all mentions of "manually". Not necessary.'''
 
         self.flight.prep_metadata()
         fps = self.flight.get_manually_georeferenced_filepaths(
@@ -97,3 +98,29 @@ class TestObservation(unittest.TestCase):
         obs = self.flight.get_observation(test_fn)
 
         img = obs.get_img()
+
+        assert img is not None
+
+
+class TestReferencedObservation(unittest.TestCase):
+
+    def setUp(self):
+
+        generic_setup(self)
+        self.flight.prep_metadata()
+        self.flight.get_manually_georeferenced_filepaths(
+            self.manually_referenced_dir,
+            camera_num=0,
+        )
+
+    def test_get_img(self):
+
+        # Get the index corresponding to our test image.
+        reffed_fps = self.flight.metadata['manually_referenced_fp']
+        reffed_fps = reffed_fps.loc[reffed_fps.notna()]
+        ind = reffed_fps.index[0]
+
+        obs = self.flight.get_referenced_observation(ind)
+
+        img = obs.get_img()
+        assert img is not None
