@@ -91,18 +91,22 @@ class TestObservation(unittest.TestCase):
         generic_setup(self)
         self.flight.prep_metadata()
 
-    def test_get_img(self):
-
         # Get the index corresponding to our test image.
         test_fn = '20220413_221313_1020286912_0_50_3.raw'
-        obs = self.flight.get_observation(test_fn)
+        self.obs = self.flight.get_observation(test_fn)
 
-        img = obs.get_img()
+    def test_get_img(self):
+
+        img = self.obs.get_img()
 
         assert img is not None
 
+    def test_show(self):
 
-class TestReferencedObservation(unittest.TestCase):
+        self.obs.show()
+
+
+class TestReferencedObservation(TestObservation):
 
     def setUp(self):
 
@@ -113,14 +117,9 @@ class TestReferencedObservation(unittest.TestCase):
             camera_num=0,
         )
 
-    def test_get_img(self):
-
         # Get the index corresponding to our test image.
         reffed_fps = self.flight.metadata['manually_referenced_fp']
         reffed_fps = reffed_fps.loc[reffed_fps.notna()]
         ind = reffed_fps.index[0]
 
-        obs = self.flight.get_referenced_observation(ind)
-
-        img = obs.get_img()
-        assert img is not None
+        self.obs = self.flight.get_referenced_observation(ind)

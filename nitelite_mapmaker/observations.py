@@ -2,7 +2,6 @@
 '''
 
 from typing import Tuple, Union
-import warnings
 
 import glob
 import os
@@ -12,6 +11,7 @@ import numpy as np
 import pandas as pd
 import scipy
 
+import matplotlib.pyplot as plt
 
 class Flight:
 
@@ -396,7 +396,7 @@ class Flight:
 
 class Observation:
 
-    def __init__(self, flight: Flight, ind: int):
+    def __init__(self, flight: Flight, ind: int, *args, **kwargs):
         self.flight = flight
         self.ind = ind
         self.img_shape = self.flight.img_shape
@@ -411,6 +411,28 @@ class Observation:
             self.metadata: A row of the metadata DataFrame
         '''
         return self.flight.metadata.loc[self.ind]
+
+    @property
+    def img(self) -> np.ndarray[float]:
+        '''Quick access, using default options for getting the image.
+        For more-controlled access call get_img.
+        '''
+        if hasattr(self, '_img'):
+            return self._img
+        else:
+            self._img = self.get_img()
+            return self._img
+
+    @property
+    def img_int(self) -> np.ndarray[int]:
+        '''Quick access, using default options for getting the image.
+        For more-controlled access call get_img.
+        '''
+        if hasattr(self, '_img_int'):
+            return self._img_int
+        else:
+            self._img_int = self.get_img_int()
+            return self._img_int
 
     def get_img(
         self,
@@ -473,16 +495,13 @@ class Observation:
         img = img / max_val
 
         # float32 is what OpenCV expects
-        self.img = img.astype('float32')
+        img = img.astype('float32')
 
-        return self.img
+        return img
 
     def get_img_int(self, *args, **kwargs) -> np.ndarray[int]:
 
-        if not hasattr(self, 'img'):
-            self.get_img(*args, **kwargs)
-
-        self.img_int = cv2.normalize(
+        img_int = cv2.normalize(
             self.img,
             None,
             alpha=0,
@@ -491,7 +510,15 @@ class Observation:
             dtype=cv2.CV_8U
         )
 
-        return self.img_int
+        return img_int
+
+    def show(self, ax=None):
+
+        if ax is None:
+            fig = plt.figure(figsize=(10, 10))
+            ax = plt.gca()
+
+        ax.imshow(self.img)
 
 
 class ReferencedObservation(Observation):
@@ -509,6 +536,4 @@ class ReferencedObservation(Observation):
         if k_rot != 0:
             img = np.rot90(img, k_rot)
 
-        self.img = img
-
-        return self.img
+        return img
