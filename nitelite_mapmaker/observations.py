@@ -8,6 +8,7 @@ import os
 
 import cv2
 import numpy as np
+from osgeo import gdal
 import pandas as pd
 import pyproj
 import scipy
@@ -237,6 +238,13 @@ class Flight:
 
             gps_log_df[column] = gps_log_df[column].astype(float)
 
+        # Coordinates
+        gps_log_df['sensor_x'], gps_log_df['sensor_y'] = \
+            self.latlon_to_cart.transform(
+                gps_log_df['GPSLat'],
+                gps_log_df['GPSLong']
+            )
+
         self.gps_log_df = gps_log_df
         return gps_log_df
 
@@ -330,7 +338,7 @@ class Flight:
         imu_log_df = self.load_imu_log()
         gps_log_df = self.load_gps_log()
 
-        metadata = self.combine_logs(
+        self.metadata = self.combine_logs(
             img_log_df,
             imu_log_df,
             gps_log_df,
@@ -339,8 +347,7 @@ class Flight:
         if self.referenced_dir is not None:
             _ = self.get_manually_georeferenced_filepaths(self.referenced_dir)
 
-        self.metadata = metadata
-        return metadata
+        return self.metadata
 
     def get_manually_georeferenced_filepaths(
         self,
@@ -464,22 +471,18 @@ class Observation:
         '''Quick access, using default options for getting the image.
         For more-controlled access call get_img.
         '''
-        if hasattr(self, '_img'):
-            return self._img
-        else:
+        if not hasattr(self, '_img'):
             self._img = self.get_img()
-            return self._img
+        return self._img
 
     @property
     def img_int(self) -> np.ndarray[int]:
         '''Quick access, using default options for getting the image.
         For more-controlled access call get_img.
         '''
-        if hasattr(self, '_img_int'):
-            return self._img_int
-        else:
+        if not hasattr(self, '_img_int'):
             self._img_int = self.get_img_int()
-            return self._img_int
+        return self._img_int
 
     def get_img(
         self,
@@ -521,13 +524,31 @@ class Observation:
     def show(self, ax=None):
 
         if ax is None:
-            fig = plt.figure(figsize=(10, 10))
+            fig = plt.figure(figsize=np.array(self.img.shape[:2]) / 60.)
             ax = plt.gca()
 
         ax.imshow(self.img)
 
 
 class ReferencedObservation(Observation):
+    '''
+    Assumes the file is saved as a GeoTIFF.
+    '''
+
+    def __init__(self, *args, **kwargs):
+
+        super().__init__(*args, **kwargs)
+
+        # We don't inherit our image shape from the flight when referenced
+        del self.img_shape
+
+    @property
+    def dataset(self):
+        '''GDAL dataset.'''
+        if not hasattr(self, '_dataset'):
+            fp = self.metadata['manually_referenced_fp']
+            self._dataset = gdal.Open(fp)
+        return self._dataset
 
     def get_img(self, k_rot=0):
 
@@ -543,6 +564,76 @@ class ReferencedObservation(Observation):
             img = np.rot90(img, k_rot)
 
         return img
+
+    def get_bounds(self, crs: pyproj.CRS) -> Tuple[np.ndarray, np.ndarray]:
+        '''Get image bounds in a given coordinate system.
+        
+        Args:
+            crs: Desired coordinate system.
+
+        Returns:
+            x_bounds: x_min, x_max of the image in the target coordinate system
+            y_bounds: y_min, y_max of the image in the target coordinate system
+        '''
+
+        # Get the coordinates
+        x_min, px_width, x_rot, y_max, y_rot, px_height = \
+            self.dataset.GetGeoTransform()
+        x_max = x_min + px_width * self.dataset.RasterXSize
+        y_min = y_max + px_height * self.dataset.RasterYSize
+
+        # Convert to desired crs
+        file_crs = pyproj.CRS(self.dataset.GetProjection())
+        file_to_desired = pyproj.Transformer.from_crs(
+            file_crs,
+            crs,
+            always_xy=True
+        )
+        x_bounds, y_bounds = file_to_desired.transform(
+            [x_min, x_max],
+            [y_min, y_max]
+        )
+
+        return x_bounds, y_bounds
+
+    def get_latlon_bounds(self):
+        return self.get_bounds(self.flight.latlon_crs)
+
+    def get_cart_bounds(self):
+        return self.get_bounds(self.flight.cart_crs)
+
+    def get_cart_coordinates(self):
+
+        x_bounds, y_bounds = self.get_cart_bounds()
+
+        xs = np.linspace(x_bounds[0], x_bounds[1], self.img.shape[1])
+        ys = np.linspace(y_bounds[0], y_bounds[1], self.img.shape[0])
+
+        return xs, ys
+
+    def get_pixel_coordinates(self):
+
+        pxs = np.arange(self.img.shape[1])
+        pys = np.arange(self.img.shape[0])
+
+        return pxs, pys
+
+    def show_in_cart_crs(self, ax=None):
+        '''
+        TODO: Make this more consistent with naming of other functions?
+        '''
+
+        if ax is None:
+            fig = plt.figure(figsize=np.array(self.img.shape[:2]) / 60.)
+            ax = plt.gca()
+
+        xs, ys = self.get_cart_coordinates()
+
+        ax.pcolormesh(
+            xs,
+            ys,
+            self.img
+        )
 
 
 def load_rgb_img(

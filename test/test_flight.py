@@ -123,3 +123,9 @@ class TestReferencedObservation(TestObservation):
         ind = reffed_fps.index[0]
 
         self.obs = self.flight.get_referenced_observation(ind)
+
+    def test_show_in_cart_crs(self):
+
+        self.obs.show_in_cart_crs()
+
+
