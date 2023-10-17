@@ -9,9 +9,11 @@ import os
 import cv2
 import numpy as np
 import pandas as pd
+import pyproj
 import scipy
 
 import matplotlib.pyplot as plt
+
 
 class Flight:
 
@@ -21,6 +23,7 @@ class Flight:
         img_log_fp: str,
         imu_log_fp: str,
         gps_log_fp: str,
+        referenced_dir: str = None,
         img_shape: Tuple[int, int] = (1200, 1920),
         bit_precisions: dict[str, int] = {
             '.raw': 12,
@@ -28,6 +31,8 @@ class Flight:
             '.tif': 16,
         },
         metadata_tz_offset_in_hr: float = 5.,
+        cart_crs_code: str = 'EPSG:3857',
+        latlon_crs_code: str = 'EPSG:4326',
     ):
         '''
         Args:
@@ -35,17 +40,38 @@ class Flight:
             img_log_fp: Location of log containing image metadata.
             imu_log_fp: Location of log containing IMU metadata.
             gps_log_fp: Location of log containing GPS metadata.
+            referenced_dir: Directory containing any existing
+                georeferenced files.
             img_shape: Shape of image.
             bit_precisions: Bit types used for the data.
+            metadata_tz_offset_in_hr: Difference between timezone of the GPS
+                clock and the timezone of area the flight took place in.
+            cart_crs_code: Cartesian coordinate reference system code.
+                Defaults to the one used for Google maps.
+            latlon_crs_code: Latitude/longituded coordinate reference system
+                code. Defaults to WGS84, a common standard.
         '''
 
         self.image_dir = image_dir
         self.img_log_fp = img_log_fp
         self.imu_log_fp = imu_log_fp
         self.gps_log_fp = gps_log_fp
+        self.referenced_dir = referenced_dir
         self.img_shape = img_shape
         self.bit_precisions = bit_precisions
         self.metadata_tz_offset_in_hr = metadata_tz_offset_in_hr
+
+        # Establish CRS and conversions
+        self.cart_crs = pyproj.CRS(cart_crs_code)
+        self.latlon_crs = pyproj.CRS(latlon_crs_code)
+        self.cart_to_latlon = pyproj.Transformer.from_crs(
+            self.cart_crs,
+            self.latlon_crs
+        )
+        self.latlon_to_cart = pyproj.Transformer.from_crs(
+            self.latlon_crs,
+            self.cart_crs
+        )
 
         # TODO: This is commented out because raw images without metadata
         #   are not particularly useful.
@@ -309,6 +335,9 @@ class Flight:
             imu_log_df,
             gps_log_df,
         )
+
+        if self.referenced_dir is not None:
+            _ = self.get_manually_georeferenced_filepaths(self.referenced_dir)
 
         self.metadata = metadata
         return metadata
