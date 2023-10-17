@@ -1,7 +1,7 @@
 '''This module handles data from observations, e.g. NITELite flights.
 '''
 
-from typing import Tuple
+from typing import Tuple, Union
 import warnings
 
 import glob
@@ -47,8 +47,10 @@ class Flight:
         self.bit_precisions = bit_precisions
         self.metadata_tz_offset_in_hr = metadata_tz_offset_in_hr
 
+        # TODO: This is commented out because raw images without metadata
+        #   are not particularly useful.
         # Get list of image filepaths.
-        self.image_fps = glob.glob(os.path.join(self.image_dir, '*.raw'))
+        # self.image_fps = glob.glob(os.path.join(self.image_dir, '*.raw'))
 
     def load_img_log(self, img_log_fp: str = None) -> pd.DataFrame:
         '''Load the images log.
@@ -102,6 +104,14 @@ class Flight:
             [column for column in img_log_df.columns if 'Unnamed' in column],
             axis='columns'
         )
+
+        # Get filepaths
+        def get_filepath(original_filename):
+            return os.path.join(
+                self.image_dir,
+                os.path.basename(original_filename)
+            )
+        img_log_df['filepath'] = img_log_df['filename'].apply(get_filepath)
 
         self.img_log_df = img_log_df
         return img_log_df
@@ -355,9 +365,41 @@ class Flight:
         self.metadata = metadata
         return metadata
 
-    def get_rgb_img(
+    def get_observation(self, ind_or_fn: Union[int, str]):
+
+        # Identify the matching ind
+        if isinstance(ind_or_fn, str):
+            fn_matches = self.metadata['filename'].str.find(ind_or_fn) != -1
+            ind = self.metadata.index[fn_matches][0]
+        # Use the passed-in ind
+        elif isinstance(ind_or_fn, int):
+            ind = ind_or_fn
+        else:
+            raise TypeError(f'Expected int or str, got {type(ind_or_fn)}')
+
+        return Observation(self, ind)
+
+
+class Observation:
+
+    def __init__(self, flight: Flight, ind: int):
+        self.flight = flight
+        self.ind = ind
+        self.img_shape = self.flight.img_shape
+        self.bit_precisions = self.flight.bit_precisions
+
+    @property
+    def metadata(self) -> pd.Series:
+        '''Easy reference for the specific metadata row corresponding to this
+        observation.
+
+        Returns:
+            self.metadata: A row of the metadata DataFrame
+        '''
+        return self.flight.metadata.loc[self.ind]
+
+    def get_img(
         self,
-        fp: str,
         conversion_method: str = 'opencv'
     ) -> np.ndarray[float]:
         '''Load one of the images.
@@ -371,6 +413,8 @@ class Flight:
         Returns:
             img: (n,m,3) array containing the image in RGB format
         '''
+
+        fp = self.metadata['filepath']
 
         ext = os.path.splitext(fp)[1]
 
