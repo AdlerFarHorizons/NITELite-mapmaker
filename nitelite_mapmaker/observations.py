@@ -414,7 +414,7 @@ class Flight:
         )
         for ind in referenced_inds:
             reffed_obs_i = self.get_referenced_observation(ind)
-            x_bounds, y_bounds = reffed_obs_i.get_cart_bounds()
+            x_bounds, y_bounds = reffed_obs_i.cart_bounds
             data['img_x_min'].append(x_bounds[0])
             data['img_x_max'].append(x_bounds[1])
             data['img_y_min'].append(y_bounds[0])
