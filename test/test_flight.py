@@ -35,6 +35,7 @@ def generic_setup(test_case):
 
     test_case.rng = np.random.default_rng(10327)
 
+
 class TestPrepMetadata(unittest.TestCase):
 
     def setUp(self):
@@ -82,6 +83,14 @@ class TestPrepMetadata(unittest.TestCase):
         ).str[-1].astype(int)
         n_bad = (fp_camera_num != 0).sum()
         assert n_bad == 0
+
+    def test_update_metadata_with_cart_bounds(self):
+        self.flight.prep_metadata()
+        fps = self.flight.get_manually_georeferenced_filepaths(
+            self.manually_referenced_dir,
+            camera_num=0,
+        )
+        self.flight.update_metadata_with_cart_bounds()
 
 
 class TestObservation(unittest.TestCase):
@@ -141,5 +150,25 @@ class TestReferencedObservation(TestObservation):
     def test_show_in_cart_crs(self):
 
         self.obs.show(cartesian=True)
+
+    def test_convert_pixel_to_cart(self):
+
+        xs, ys = self.obs.get_cart_coordinates()
+        pxs, pys = self.obs.get_pixel_coordinates()
+
+        actual_xs, actual_ys = self.obs.convert_pixel_to_cart(pxs, pys)
+
+        np.testing.assert_allclose(xs, actual_xs)
+        np.testing.assert_allclose(ys, actual_ys)
+
+    def test_convert_cart_to_pixel(self):
+
+        xs, ys = self.obs.get_cart_coordinates()
+        pxs, pys = self.obs.get_pixel_coordinates()
+
+        actual_pxs, actual_pys = self.obs.convert_cart_to_pixel(xs, ys)
+
+        np.testing.assert_allclose(pxs, actual_pxs)
+        np.testing.assert_allclose(pys, actual_pys)
 
 

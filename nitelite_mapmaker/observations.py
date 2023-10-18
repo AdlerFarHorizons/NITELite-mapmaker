@@ -399,6 +399,54 @@ class Flight:
 
         return self.metadata['manually_referenced_fp']
 
+    def update_metadata_with_cart_bounds(self):
+
+        referenced_inds = self.metadata.index[
+            self.metadata['manually_referenced_fp'].notna()
+        ]
+
+        # Retrieve
+        data = dict(
+            img_x_min=[],
+            img_x_max=[],
+            img_y_min=[],
+            img_y_max=[],
+        )
+        for ind in referenced_inds:
+            reffed_obs_i = self.get_referenced_observation(ind)
+            x_bounds, y_bounds = reffed_obs_i.get_cart_bounds()
+            data['img_x_min'].append(x_bounds[0])
+            data['img_x_max'].append(x_bounds[1])
+            data['img_y_min'].append(y_bounds[0])
+            data['img_y_max'].append(y_bounds[1])
+
+        # Store
+        img_coords_df = pd.DataFrame(data)
+        img_coords_df.index = referenced_inds
+        
+        # Image centers
+        img_coords_df['img_x_center'] = 0.5 * (
+            img_coords_df['img_x_min'] + img_coords_df['img_x_max']
+        )
+        img_coords_df['img_y_center'] = 0.5 * (
+            img_coords_df['img_y_min'] + img_coords_df['img_y_max']
+        )
+
+        # Image dimensions
+        img_coords_df['img_width'] = (
+            img_coords_df['img_x_max'] - img_coords_df['img_x_min']
+        )
+        img_coords_df['img_height'] = (
+            img_coords_df['img_y_max'] - img_coords_df['img_y_min']
+        )
+        img_coords_df['img_hypotenuse'] = np.sqrt(
+            img_coords_df['img_width']**2.
+            + img_coords_df['img_height']**2.
+        )
+
+        # Update
+        self.metadata = self.metadata.join(img_coords_df)
+
     def load_preexisting_metadata(self, fp: str = None) -> pd.DataFrame:
 
         if fp is None:
@@ -552,6 +600,18 @@ class ReferencedObservation(Observation):
             self._dataset = gdal.Open(fp)
         return self._dataset
 
+    @property
+    def latlon_bounds(self):
+        if not hasattr(self, '_latlon_bounds'):
+            self._latlon_bounds = self.get_bounds(self.flight.latlon_crs)
+        return self._latlon_bounds
+
+    @property
+    def cart_bounds(self):
+        if not hasattr(self, '_cart_bounds'):
+            self._cart_bounds = self.get_bounds(self.flight.cart_crs)
+        return self._cart_bounds
+
     def get_img(self, k_rot=0):
 
         fp = self.metadata['manually_referenced_fp']
@@ -593,15 +653,9 @@ class ReferencedObservation(Observation):
 
         return x_bounds, y_bounds
 
-    def get_latlon_bounds(self):
-        return self.get_bounds(self.flight.latlon_crs)
-
-    def get_cart_bounds(self):
-        return self.get_bounds(self.flight.cart_crs)
-
     def get_cart_coordinates(self):
 
-        x_bounds, y_bounds = self.get_cart_bounds()
+        x_bounds, y_bounds = self.cart_bounds
 
         xs = np.linspace(x_bounds[0], x_bounds[1], self.img.shape[1])
         ys = np.linspace(y_bounds[0], y_bounds[1], self.img.shape[0])
@@ -612,6 +666,30 @@ class ReferencedObservation(Observation):
 
         pxs = np.arange(self.img.shape[1])
         pys = np.arange(self.img.shape[0])
+
+        return pxs, pys
+
+    def convert_pixel_to_cart(self, pxs, pys):
+
+        (x_min, x_max), (y_min, y_max) = self.cart_bounds
+
+        x_scaling = (x_max - x_min) / (self.dataset.RasterXSize - 1)
+        y_scaling = (y_max - y_min) / (self.dataset.RasterYSize - 1)
+
+        xs = x_scaling * pxs + x_min
+        ys = y_scaling * pys + y_min
+
+        return xs, ys
+
+    def convert_cart_to_pixel(self, xs, ys):
+
+        (x_min, x_max), (y_min, y_max) = self.cart_bounds
+
+        x_scaling = (self.dataset.RasterXSize - 1) / (x_max - x_min)
+        y_scaling = (self.dataset.RasterYSize - 1) / (y_max - y_min)
+
+        pxs = (xs - x_min) * x_scaling
+        pys = (ys - y_min) * y_scaling
 
         return pxs, pys
 
