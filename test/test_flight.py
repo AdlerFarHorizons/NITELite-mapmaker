@@ -124,8 +124,22 @@ class TestReferencedObservation(TestObservation):
 
         self.obs = self.flight.get_referenced_observation(ind)
 
+    def test_get_latlon_bounds(self):
+
+        lon_bounds, lat_bounds = self.obs.get_cart_bounds()
+
+        assert lon_bounds[1] > lon_bounds[0]
+        assert lat_bounds[1] > lat_bounds[0]
+
+    def test_get_cart_bounds(self):
+
+        x_bounds, y_bounds = self.obs.get_cart_bounds()
+
+        assert x_bounds[1] > x_bounds[0]
+        assert y_bounds[1] > y_bounds[0]
+
     def test_show_in_cart_crs(self):
 
-        self.obs.show_in_cart_crs()
+        self.obs.show(cartesian=True)
 
 
