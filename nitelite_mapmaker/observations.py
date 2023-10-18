@@ -14,6 +14,7 @@ import pyproj
 import scipy
 
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
 
 class Flight:
@@ -718,13 +719,13 @@ class ReferencedObservation(Observation):
 
         return pxs, pys
 
-    def show(self, ax=None, crs='cartesian'):
+    def show(self, ax=None, crs='pixel'):
         '''
         TODO: Make this more consistent with naming of other functions?
         '''
 
         # Use existing functionality
-        if crs == 'cartesian':
+        if crs == 'pixel':
             return super().show(ax=ax)
 
         if ax is None:
