@@ -128,7 +128,7 @@ class TestObservation(unittest.TestCase):
 
         np.testing.assert_allclose(
             self.obs.img,
-            self.obs.get_semitransparent_img()[:, :, :3],
+            self.obs.semitransparent_img[:, :, :3],
         )
 
 

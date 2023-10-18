@@ -530,12 +530,15 @@ class Observation:
 
     @property
     def img_int(self) -> np.ndarray[int]:
-        '''Quick access, using default options for getting the image.
-        For more-controlled access call get_img.
-        '''
         if not hasattr(self, '_img_int'):
             self._img_int = self.get_img_int()
         return self._img_int
+
+    @property
+    def semitransparent_img(self) -> np.ndarray[float]:
+        if not hasattr(self, '_semitransparent_img'):
+            self._semitransparent_img = self.get_semitransparent_img()
+        return self._semitransparent_img
 
     @property
     def img_shape(self):
@@ -609,7 +612,7 @@ class Observation:
 
         return pxs, pys
 
-    def show(self, ax=None, *args, **kwargs):
+    def show(self, ax=None, img='img', *args, **kwargs):
         '''
         NOTE: This will not be consistent with imshow, because with imshow
         the y-axis increases downwards, consistent with old image
@@ -622,7 +625,7 @@ class Observation:
         '''
 
         if ax is None:
-            fig = plt.figure(figsize=np.array(self.img_shape[:2]) / 60.)
+            fig = plt.figure(figsize=np.array(self.img_shape) / 60.)
             ax = plt.gca()
 
         pxs, pys = self.get_pixel_coordinates()
@@ -630,7 +633,7 @@ class Observation:
         ax.pcolormesh(
             pxs,
             pys,
-            self.img,
+            getattr(self, img),
             *args,
             **kwargs
         )
@@ -767,17 +770,17 @@ class ReferencedObservation(Observation):
         )
         ax.add_patch(rect)
 
-    def show(self, ax=None, crs='pixel', *args, **kwargs):
+    def show(self, ax=None, img='img', crs='pixel', *args, **kwargs):
         '''
         TODO: Make this more consistent with naming of other functions?
         '''
 
         # Use existing functionality
         if crs == 'pixel':
-            return super().show(ax=ax, *args, **kwargs)
+            return super().show(ax=ax, img=img, *args, **kwargs)
 
         if ax is None:
-            fig = plt.figure(figsize=np.array(self.img_shape[:2]) / 60.)
+            fig = plt.figure(figsize=np.array(self.img_shape) / 60.)
             ax = plt.gca()
 
         xs, ys = self.get_cart_coordinates()
@@ -785,7 +788,7 @@ class ReferencedObservation(Observation):
         ax.pcolormesh(
             xs,
             ys,
-            self.img,
+            getattr(self, img),
             *args,
             **kwargs
         )
