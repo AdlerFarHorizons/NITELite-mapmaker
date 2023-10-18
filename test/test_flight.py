@@ -149,7 +149,8 @@ class TestReferencedObservation(TestObservation):
 
     def test_show_in_cart_crs(self):
 
-        self.obs.show(cartesian=True)
+        self.obs.show(crs='cartesian')
+        self.obs.show(crs='pixel')
 
     def test_convert_pixel_to_cart(self):
 

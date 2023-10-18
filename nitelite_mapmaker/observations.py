@@ -400,6 +400,8 @@ class Flight:
         return self.metadata['manually_referenced_fp']
 
     def update_metadata_with_cart_bounds(self):
+        '''TODO: Rename.
+        '''
 
         referenced_inds = self.metadata.index[
             self.metadata['manually_referenced_fp'].notna()
@@ -693,20 +695,23 @@ class ReferencedObservation(Observation):
 
         return pxs, pys
 
-    def show(self, ax=None, cartesian=False):
+    def show(self, ax=None, crs=None):
         '''
         TODO: Make this more consistent with naming of other functions?
         '''
 
         # Use existing functionality
-        if not cartesian:
+        if crs is None:
             return super().show(ax=ax)
 
         if ax is None:
             fig = plt.figure(figsize=np.array(self.img.shape[:2]) / 60.)
             ax = plt.gca()
 
-        xs, ys = self.get_cart_coordinates()
+        if crs == 'cartesian':
+            xs, ys = self.get_cart_coordinates()
+        elif crs == 'pixel':
+            xs, ys = self.get_pixel_coordinates()
 
         ax.pcolormesh(
             xs,
