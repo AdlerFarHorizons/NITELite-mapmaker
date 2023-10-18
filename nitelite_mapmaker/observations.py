@@ -573,13 +573,36 @@ class Observation:
 
         return img_int
 
+    def get_pixel_coordinates(self):
+
+        pxs = np.arange(self.img_shape[1])
+        pys = np.arange(self.img_shape[0])
+
+        return pxs, pys
+
     def show(self, ax=None):
+        '''
+        NOTE: This will not be consistent with imshow, because with imshow
+        the y-axis increases downwards, consistent with old image
+        processing schemes. Instead this is consistent with transposing and
+        positively scaling the image to cartesian coordinates.
+        
+        Args:
+        Kwargs:
+        Returns:
+        '''
 
         if ax is None:
             fig = plt.figure(figsize=np.array(self.img.shape[:2]) / 60.)
             ax = plt.gca()
 
-        ax.imshow(self.img)
+        pxs, pys = self.get_pixel_coordinates()
+
+        ax.pcolormesh(
+            pxs,
+            pys,
+            self.img
+        )
 
 
 class ReferencedObservation(Observation):
@@ -666,8 +689,8 @@ class ReferencedObservation(Observation):
 
     def get_pixel_coordinates(self):
 
-        pxs = np.arange(self.img.shape[1])
-        pys = np.arange(self.img.shape[0])
+        pxs = np.arange(self.dataset.RasterXSize)
+        pys = np.arange(self.dataset.RasterYSize)
 
         return pxs, pys
 
@@ -695,23 +718,20 @@ class ReferencedObservation(Observation):
 
         return pxs, pys
 
-    def show(self, ax=None, crs=None):
+    def show(self, ax=None, crs='cartesian'):
         '''
         TODO: Make this more consistent with naming of other functions?
         '''
 
         # Use existing functionality
-        if crs is None:
+        if crs == 'cartesian':
             return super().show(ax=ax)
 
         if ax is None:
             fig = plt.figure(figsize=np.array(self.img.shape[:2]) / 60.)
             ax = plt.gca()
 
-        if crs == 'cartesian':
-            xs, ys = self.get_cart_coordinates()
-        elif crs == 'pixel':
-            xs, ys = self.get_pixel_coordinates()
+        xs, ys = self.get_cart_coordinates()
 
         ax.pcolormesh(
             xs,
@@ -736,7 +756,7 @@ class ReferencedObservation(Observation):
         # Let's keep this as an optional import for now.
         import folium
 
-        lon_bounds, lat_bounds = self.get_latlon_bounds()
+        lon_bounds, lat_bounds = self.latlon_bounds
         bounds = [
             [lat_bounds[0], lon_bounds[0]],
             [lat_bounds[1], lon_bounds[1]]
