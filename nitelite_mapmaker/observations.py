@@ -560,11 +560,6 @@ class ReferencedObservation(Observation):
         img = cv2.imread(fp, cv2.IMREAD_UNCHANGED)
         img = img[:, :, ::-1] / 2**16  # Formatting
 
-        # We can rotate man_img to make the alignment just a bit closer to
-        # the natural alignment of the unreffed image
-        if k_rot != 0:
-            img = np.rot90(img, k_rot)
-
         return img
 
     def get_bounds(self, crs: pyproj.CRS) -> Tuple[np.ndarray, np.ndarray]:
