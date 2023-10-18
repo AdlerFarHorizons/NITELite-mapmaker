@@ -114,6 +114,23 @@ class TestObservation(unittest.TestCase):
 
         self.obs.show()
 
+    def test_get_nonzero_mask(self):
+
+        mask = self.obs.get_nonzero_mask()
+
+        assert mask.shape == self.obs.img.shape[:2]
+
+    def test_img_shape(self):
+
+        assert self.obs.img_shape == self.obs.img.shape[:2]
+
+    def test_semitransparent_img(self):
+
+        np.testing.assert_allclose(
+            self.obs.img,
+            self.obs.get_semitransparent_img()[:, :, :3],
+        )
+
 
 class TestReferencedObservation(TestObservation):
 

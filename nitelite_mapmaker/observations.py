@@ -3,6 +3,7 @@
 
 from typing import Tuple, Union
 
+import copy
 import glob
 import os
 
@@ -506,7 +507,6 @@ class Observation:
         '''
         self.flight = flight
         self.ind = ind
-        self.img_shape = self.flight.img_shape
         self.bit_precisions = self.flight.bit_precisions
 
     @property
@@ -537,6 +537,13 @@ class Observation:
             self._img_int = self.get_img_int()
         return self._img_int
 
+    @property
+    def img_shape(self):
+        if hasattr(self, '_img'):
+            return self._img.shape[:2]
+        else:
+            return self.flight.img_shape
+
     def get_img(
         self,
         conversion_method: str = 'opencv'
@@ -561,7 +568,14 @@ class Observation:
             conversion_method=conversion_method,
         )
 
-    def get_img_int(self, *args, **kwargs) -> np.ndarray[int]:
+    def get_img_int(self) -> np.ndarray[int]:
+        '''
+
+        TODO: State (and assess) general principle--
+            will use default options for image retrieval.
+            For more fine-grained control call get_img
+            first, instead of passing in additional arguments.
+        '''
 
         img_int = cv2.normalize(
             self.img,
@@ -574,6 +588,20 @@ class Observation:
 
         return img_int
 
+    def get_nonzero_mask(self) -> np.ndarray[bool]:
+
+        return self.img_int.sum(axis=2) > 0
+
+    def get_semitransparent_img(self) -> np.ndarray[float]:
+
+        semitransparent_img = np.zeros(
+            shape=(self.img_shape[0], self.img_shape[1], 4)
+        )
+        semitransparent_img[:, :, :3] = self.img
+        semitransparent_img[:, :, 3] = self.get_nonzero_mask().astype(float)
+
+        return semitransparent_img
+
     def get_pixel_coordinates(self):
 
         pxs = np.arange(self.img_shape[1])
@@ -581,7 +609,7 @@ class Observation:
 
         return pxs, pys
 
-    def show(self, ax=None):
+    def show(self, ax=None, *args, **kwargs):
         '''
         NOTE: This will not be consistent with imshow, because with imshow
         the y-axis increases downwards, consistent with old image
@@ -594,7 +622,7 @@ class Observation:
         '''
 
         if ax is None:
-            fig = plt.figure(figsize=np.array(self.img.shape[:2]) / 60.)
+            fig = plt.figure(figsize=np.array(self.img_shape[:2]) / 60.)
             ax = plt.gca()
 
         pxs, pys = self.get_pixel_coordinates()
@@ -602,7 +630,9 @@ class Observation:
         ax.pcolormesh(
             pxs,
             pys,
-            self.img
+            self.img,
+            *args,
+            **kwargs
         )
 
 
@@ -610,13 +640,6 @@ class ReferencedObservation(Observation):
     '''
     Assumes the file is saved as a GeoTIFF.
     '''
-
-    def __init__(self, *args, **kwargs):
-
-        super().__init__(*args, **kwargs)
-
-        # We don't inherit our image shape from the flight when referenced
-        del self.img_shape
 
     @property
     def dataset(self):
@@ -637,6 +660,13 @@ class ReferencedObservation(Observation):
         if not hasattr(self, '_cart_bounds'):
             self._cart_bounds = self.get_bounds(self.flight.cart_crs)
         return self._cart_bounds
+
+    @property
+    def img_shape(self):
+        if hasattr(self, '_img'):
+            return self._img.shape[:2]
+        else:
+            return (self.dataset.RasterYSize, self.dataset.RasterXSize)
 
     def get_img(self, k_rot=0):
 
@@ -683,8 +713,8 @@ class ReferencedObservation(Observation):
 
         x_bounds, y_bounds = self.cart_bounds
 
-        xs = np.linspace(x_bounds[0], x_bounds[1], self.img.shape[1])
-        ys = np.linspace(y_bounds[0], y_bounds[1], self.img.shape[0])
+        xs = np.linspace(x_bounds[0], x_bounds[1], self.img_shape[1])
+        ys = np.linspace(y_bounds[0], y_bounds[1], self.img_shape[0])
 
         return xs, ys
 
@@ -719,17 +749,35 @@ class ReferencedObservation(Observation):
 
         return pxs, pys
 
-    def show(self, ax=None, crs='pixel'):
+    def plot_bounds(self, ax, *args, **kwargs):
+
+        used_kwargs = {
+            'linewidth': 3,
+            'facecolor': 'none',
+            'edgecolor': '#dd8452',
+        }
+        used_kwargs.update(kwargs)
+
+        rect = patches.Rectangle(
+            (self.metadata['img_x_min'], self.metadata['img_y_min']),
+            self.metadata['img_width'],
+            self.metadata['img_height'],
+            *args,
+            **used_kwargs
+        )
+        ax.add_patch(rect)
+
+    def show(self, ax=None, crs='pixel', *args, **kwargs):
         '''
         TODO: Make this more consistent with naming of other functions?
         '''
 
         # Use existing functionality
         if crs == 'pixel':
-            return super().show(ax=ax)
+            return super().show(ax=ax, *args, **kwargs)
 
         if ax is None:
-            fig = plt.figure(figsize=np.array(self.img.shape[:2]) / 60.)
+            fig = plt.figure(figsize=np.array(self.img_shape[:2]) / 60.)
             ax = plt.gca()
 
         xs, ys = self.get_cart_coordinates()
@@ -737,7 +785,9 @@ class ReferencedObservation(Observation):
         ax.pcolormesh(
             xs,
             ys,
-            self.img
+            self.img,
+            *args,
+            **kwargs
         )
 
         ax.set_aspect('equal')
