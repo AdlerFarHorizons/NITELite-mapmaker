@@ -63,6 +63,8 @@ class Flight:
         self.metadata_tz_offset_in_hr = metadata_tz_offset_in_hr
 
         # Establish CRS and conversions
+        self.cart_crs_code = cart_crs_code
+        self.latlon_crs_code = latlon_crs_code
         self.cart_crs = pyproj.CRS(cart_crs_code)
         self.latlon_crs = pyproj.CRS(latlon_crs_code)
         self.cart_to_latlon = pyproj.Transformer.from_crs(
@@ -618,10 +620,14 @@ class ReferencedObservation(Observation):
 
         return pxs, pys
 
-    def show_in_cart_crs(self, ax=None):
+    def show(self, ax=None, cartesian=False):
         '''
         TODO: Make this more consistent with naming of other functions?
         '''
+
+        # Use existing functionality
+        if not cartesian:
+            return super().show(ax=ax)
 
         if ax is None:
             fig = plt.figure(figsize=np.array(self.img.shape[:2]) / 60.)
@@ -634,6 +640,57 @@ class ReferencedObservation(Observation):
             ys,
             self.img
         )
+
+        ax.set_aspect('equal')
+
+    def add_to_folium_map(
+        self,
+        m,
+        label: str = 'referenced',
+        include_corner_markers: bool = False
+    ):
+        '''Add to a folium map.
+        
+        Args:
+            m (folium map): The map to add to.
+        '''
+
+        # Let's keep this as an optional import for now.
+        import folium
+
+        lon_bounds, lat_bounds = self.get_latlon_bounds()
+        bounds = [
+            [lat_bounds[0], lon_bounds[0]],
+            [lat_bounds[1], lon_bounds[1]]
+        ]
+
+        folium.raster_layers.ImageOverlay(
+            self.dataset.ReadAsArray().transpose(1, 2, 0),
+            bounds=bounds,
+            name=label,
+        ).add_to(m)
+
+        # Markers for the corners so we can understand how the image pixels
+        # get flipped around
+        if include_corner_markers:
+            bounds_group = folium.FeatureGroup(name=f'{label} bounds')
+            minmax_labels = ['min', 'max']
+            for ii in range(2):
+                for jj in range(2):
+                    hover_text = (
+                        f'(x_{minmax_labels[jj]}, '
+                        f'y_{minmax_labels[ii]})'
+                    )
+                    folium.Marker(
+                        [lat_bounds[ii], lon_bounds[jj]],
+                        popup=hover_text,
+                        icon=folium.Icon(
+                            color='gray',
+                            # TODO: Incorporate colors
+                            # icon_color=palette.as_hex()[jj * 2 + ii]
+                        ),
+                    ).add_to(bounds_group)
+            bounds_group.add_to(m)
 
 
 def load_rgb_img(
