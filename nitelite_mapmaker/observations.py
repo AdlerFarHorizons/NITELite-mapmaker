@@ -247,7 +247,7 @@ class Flight:
             self.latlon_to_cart.transform(
                 gps_log_df['GPSLat'],
                 gps_log_df['GPSLong']
-            )
+        )
 
         self.gps_log_df = gps_log_df
         return gps_log_df
@@ -427,7 +427,7 @@ class Flight:
         # Store
         img_coords_df = pd.DataFrame(data)
         img_coords_df.index = referenced_inds
-        
+
         # Image centers
         img_coords_df['img_x_center'] = 0.5 * (
             img_coords_df['img_x_min'] + img_coords_df['img_x_max']
@@ -498,7 +498,7 @@ class Observation:
     def __init__(self, flight: Flight, ind: int, *args, **kwargs):
         '''Class for handling individual observations.
         Not intended for use independent of a flight.
-        
+
         Args:
             flight: The flight this image was taken as part of.
             ind: The index of this observation
@@ -605,6 +605,10 @@ class Observation:
 
         return semitransparent_img
 
+    def get_features(self) -> 
+        
+        kp, des = orb.detectAndCompute(img, None)
+
     def get_pixel_coordinates(self):
 
         pxs = np.arange(self.img_shape[1])
@@ -618,7 +622,7 @@ class Observation:
         the y-axis increases downwards, consistent with old image
         processing schemes. Instead this is consistent with transposing and
         positively scaling the image to cartesian coordinates.
-        
+
         Args:
         Kwargs:
         Returns:
@@ -637,6 +641,8 @@ class Observation:
             *args,
             **kwargs
         )
+
+        ax.set_aspect('equal')
 
 
 class ReferencedObservation(Observation):
@@ -683,7 +689,7 @@ class ReferencedObservation(Observation):
 
     def get_bounds(self, crs: pyproj.CRS) -> Tuple[np.ndarray, np.ndarray]:
         '''Get image bounds in a given coordinate system.
-        
+
         Args:
             crs: Desired coordinate system.
 
@@ -717,7 +723,7 @@ class ReferencedObservation(Observation):
         x_bounds, y_bounds = self.cart_bounds
 
         xs = np.linspace(x_bounds[0], x_bounds[1], self.img_shape[1])
-        ys = np.linspace(y_bounds[0], y_bounds[1], self.img_shape[0])
+        ys = np.linspace(y_bounds[1], y_bounds[0], self.img_shape[0])
 
         return xs, ys
 
@@ -761,10 +767,16 @@ class ReferencedObservation(Observation):
         }
         used_kwargs.update(kwargs)
 
+        x_bounds, y_bounds = self.cart_bounds
+        x_min = x_bounds[0]
+        y_min = y_bounds[0]
+        width = x_bounds[1] - x_bounds[0]
+        height = y_bounds[1] - y_bounds[0]
+
         rect = patches.Rectangle(
-            (self.metadata['img_x_min'], self.metadata['img_y_min']),
-            self.metadata['img_width'],
-            self.metadata['img_height'],
+            (x_min, y_min),
+            width,
+            height,
             *args,
             **used_kwargs
         )
