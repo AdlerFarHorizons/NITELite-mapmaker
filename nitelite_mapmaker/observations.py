@@ -541,6 +541,18 @@ class Observation:
         return self._semitransparent_img
 
     @property
+    def kp(self):
+        if not hasattr(self, '_kp'):
+            self.get_features()
+        return self._kp
+
+    @property
+    def des(self):
+        if not hasattr(self, '_des'):
+            self.get_features()
+        return self._des
+
+    @property
     def img_shape(self):
         if hasattr(self, '_img'):
             return self._img.shape[:2]
@@ -605,9 +617,13 @@ class Observation:
 
         return semitransparent_img
 
-    def get_features(self) -> 
-        
-        kp, des = orb.detectAndCompute(img, None)
+    def get_features(self):
+
+        orb = cv2.ORB_create()
+
+        self._kp, self._des = orb.detectAndCompute(self.img_int, None)
+
+        return self._kp, self._des
 
     def get_pixel_coordinates(self):
 
@@ -739,10 +755,10 @@ class ReferencedObservation(Observation):
         (x_min, x_max), (y_min, y_max) = self.cart_bounds
 
         x_scaling = (x_max - x_min) / (self.dataset.RasterXSize - 1)
-        y_scaling = (y_max - y_min) / (self.dataset.RasterYSize - 1)
+        y_scaling = (y_min - y_max) / (self.dataset.RasterYSize - 1)
 
         xs = x_scaling * pxs + x_min
-        ys = y_scaling * pys + y_min
+        ys = y_scaling * pys + y_max
 
         return xs, ys
 
@@ -751,10 +767,10 @@ class ReferencedObservation(Observation):
         (x_min, x_max), (y_min, y_max) = self.cart_bounds
 
         x_scaling = (self.dataset.RasterXSize - 1) / (x_max - x_min)
-        y_scaling = (self.dataset.RasterYSize - 1) / (y_max - y_min)
+        y_scaling = (self.dataset.RasterYSize - 1) / (y_min - y_max)
 
         pxs = (xs - x_min) * x_scaling
-        pys = (ys - y_min) * y_scaling
+        pys = (ys - y_max) * y_scaling
 
         return pxs, pys
 
