@@ -161,6 +161,10 @@ class TestReferencedImageConstruction(unittest.TestCase):
             actual_obs.dataset.RasterXSize,
             self.reffed.dataset.RasterXSize,
         )
+        np.testing.assert_allclose(
+            np.array(actual_obs.cart_bounds),
+            np.array(self.reffed.cart_bounds),
+        )
 
     def test_constructor_int_input(self):
 
@@ -181,6 +185,10 @@ class TestReferencedImageConstruction(unittest.TestCase):
         np.testing.assert_allclose(
             actual_obs.dataset.RasterXSize,
             self.reffed.dataset.RasterXSize,
+        )
+        np.testing.assert_allclose(
+            np.array(actual_obs.cart_bounds),
+            np.array(self.reffed.cart_bounds),
         )
 
 

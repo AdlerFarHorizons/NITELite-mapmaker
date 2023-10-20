@@ -717,7 +717,7 @@ class ReferencedImage(Image):
             x_bounds[0],
             dx,
             0,
-            x_bounds[1],
+            y_bounds[1],
             0,
             -dy
         )
