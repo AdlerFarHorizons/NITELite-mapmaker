@@ -8,6 +8,7 @@ import numpy as np
 
 from nitelite_mapmaker import observations
 
+
 def generic_setup(test_case):
 
     flight_name = '220513-FH135'
@@ -93,7 +94,7 @@ class TestPrepMetadata(unittest.TestCase):
         self.flight.update_metadata_with_cart_bounds()
 
 
-class TestReferencedImage(unittest.TestCase):
+class TestReferencedImageConstruction(unittest.TestCase):
 
     def test_constructor(self):
 
@@ -126,6 +127,69 @@ class TestReferencedImage(unittest.TestCase):
             actual_obs.dataset.RasterXSize,
             expected_obs.dataset.RasterXSize,
         )
+
+
+class TestReferencedImage(unittest.TestCase):
+
+    def setUp(self):
+
+        x_bounds = np.array([-9599524.7998918, -9590579.50992268])
+        y_bounds = np.array([4856260.998546081, 4862299.303607852])
+
+        self.rng = np.random.default_rng(10326)
+
+        img = self.rng.normal(size=(100, 80, 3))
+
+        self.reffed_image = observations.ReferencedImage(
+            img=img,
+            x_bounds=x_bounds,
+            y_bounds=y_bounds,
+        )
+
+    def test_get_latlon_bounds(self):
+
+        lon_bounds, lat_bounds = self.reffed_image.latlon_bounds
+
+        assert lon_bounds[1] > lon_bounds[0]
+        assert lat_bounds[1] > lat_bounds[0]
+
+    def test_get_cart_bounds(self):
+
+        x_bounds, y_bounds = self.reffed_image.cart_bounds
+
+        assert x_bounds[1] > x_bounds[0]
+        assert y_bounds[1] > y_bounds[0]
+
+    def test_show_in_cart_crs(self):
+
+        self.reffed_image.show(crs='cartesian')
+        self.reffed_image.show(crs='pixel')
+
+    def test_convert_pixel_to_cart(self):
+
+        xs, ys = self.reffed_image.get_cart_coordinates()
+        pxs, pys = self.reffed_image.get_pixel_coordinates()
+
+        actual_xs, actual_ys = self.reffed_image.convert_pixel_to_cart(
+            pxs,
+            pys
+        )
+
+        np.testing.assert_allclose(xs, actual_xs)
+        np.testing.assert_allclose(ys, actual_ys)
+
+    def test_convert_cart_to_pixel(self):
+
+        xs, ys = self.reffed_image.get_cart_coordinates()
+        pxs, pys = self.reffed_image.get_pixel_coordinates()
+
+        actual_pxs, actual_pys = self.reffed_image.convert_cart_to_pixel(xs, ys)
+
+        np.testing.assert_allclose(pxs, actual_pxs)
+        np.testing.assert_allclose(pys, actual_pys)
+
+
+
 
 
 class TestObservation(unittest.TestCase):
@@ -167,7 +231,7 @@ class TestObservation(unittest.TestCase):
         )
 
 
-class TestReferencedObservation(TestObservation):
+class TestReferencedObservation(TestObservation, TestReferencedImage):
 
     def setUp(self):
 
@@ -184,44 +248,3 @@ class TestReferencedObservation(TestObservation):
         ind = reffed_fps.index[0]
 
         self.obs = self.flight.get_referenced_observation(ind)
-
-    def test_get_latlon_bounds(self):
-
-        lon_bounds, lat_bounds = self.obs.latlon_bounds
-
-        assert lon_bounds[1] > lon_bounds[0]
-        assert lat_bounds[1] > lat_bounds[0]
-
-    def test_get_cart_bounds(self):
-
-        x_bounds, y_bounds = self.obs.cart_bounds
-
-        assert x_bounds[1] > x_bounds[0]
-        assert y_bounds[1] > y_bounds[0]
-
-    def test_show_in_cart_crs(self):
-
-        self.obs.show(crs='cartesian')
-        self.obs.show(crs='pixel')
-
-    def test_convert_pixel_to_cart(self):
-
-        xs, ys = self.obs.get_cart_coordinates()
-        pxs, pys = self.obs.get_pixel_coordinates()
-
-        actual_xs, actual_ys = self.obs.convert_pixel_to_cart(pxs, pys)
-
-        np.testing.assert_allclose(xs, actual_xs)
-        np.testing.assert_allclose(ys, actual_ys)
-
-    def test_convert_cart_to_pixel(self):
-
-        xs, ys = self.obs.get_cart_coordinates()
-        pxs, pys = self.obs.get_pixel_coordinates()
-
-        actual_pxs, actual_pys = self.obs.convert_cart_to_pixel(xs, ys)
-
-        np.testing.assert_allclose(pxs, actual_pxs)
-        np.testing.assert_allclose(pys, actual_pys)
-
-

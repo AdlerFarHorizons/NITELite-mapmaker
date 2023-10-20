@@ -9,7 +9,7 @@ import os
 
 import cv2
 import numpy as np
-from osgeo import gdal
+from osgeo import gdal, gdal_array
 import pandas as pd
 import pyproj
 import scipy
@@ -498,18 +498,17 @@ class Flight:
 class Image:
 
     def __init__(self, img):
-        if np.issubdtype(img.dtype, np.float):
+        if np.issubdtype(img.dtype, np.floating):
             self.img = img
         elif np.issubdtype(img.dtype, np.integer):
             self.img_int = img
+            self.img = (self.img_int / 255).astype(np.float32)
 
     @property
     def img(self):
         '''Image property for quick access. For the base class Image
         it's very simple, but will be overwritten by other classes.
         '''
-        if hasattr(self, '_img_int') and not hasattr(self, '_img'):
-            self._img = self.get_img_from_img_int()
         return self._img
 
     @img.setter
@@ -547,12 +546,6 @@ class Image:
         if not hasattr(self, '_des'):
             self.get_features()
         return self._des
-
-    def get_img_from_img_int(self):
-
-        img = (self.img_int / 255).astype(np.float32)
-
-        return img
 
     def get_img_int_from_img(self) -> np.ndarray[int]:
         '''
@@ -626,33 +619,33 @@ class Image:
         if crs_transform is not None:
             kp_xs, kp_ys = crs_transform(kp_xs, kp_ys)
 
-        # Colormap
-        cmap = sns.color_palette(cmap, as_cmap=True)
-        norm = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
+            # Colormap
+            cmap = sns.color_palette(cmap, as_cmap=True)
+            norm = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
 
-        # Argument update
-        used_kwargs = {
-            'c': 'none',
-            'marker': 'o',
-            's': 150,
-            'linewidth': 2,
-        }
-        used_kwargs.update(kwargs)
+            # Argument update
+            used_kwargs = {
+                'c': 'none',
+                'marker': 'o',
+                    's': 150,
+                'linewidth': 2,
+            }
+            used_kwargs.update(kwargs)
 
-        # Plot itself
-        s = ax.scatter(
-            kp_xs,
-            kp_ys,
-            edgecolors=cmap(norm(kp_responses)),
-            *args,
-            **used_kwargs
-        )
+            # Plot itself
+            s = ax.scatter(
+                kp_xs,
+                kp_ys,
+                    edgecolors=cmap(norm(kp_responses)),
+                *args,
+                **used_kwargs
+            )
 
-        return s
+            return s
 
     def show(self, ax=None, img='img', *args, **kwargs):
         '''
-        NOTE: This will not be consistent with imshow, because with imshow
+            NOTE: This will not be consistent with imshow, because with imshow
         the y-axis increases downwards, consistent with old image
         processing schemes. Instead this is consistent with transposing and
         positively scaling the image to cartesian coordinates.
@@ -670,7 +663,7 @@ class Image:
 
         ax.pcolormesh(
             pxs,
-            pys,
+                pys,
             getattr(self, img),
             *args,
             **kwargs
@@ -681,20 +674,74 @@ class Image:
 
 class ReferencedImage(Image):
 
-    def __init__(self, img, x_bounds, y_bounds):
+    def __init__(
+        self,
+        img,
+        x_bounds,
+        y_bounds,
+        cart_crs_code: str = 'EPSG:3857',
+        latlon_crs_code: str = 'EPSG:4326',
+    ):
 
         super().__init__(img)
+
+        # Make a gdal dataset
+        gdal_dtype = gdal_array.NumericTypeCodeToGDALTypeCode(
+            self.img_int.dtype
+        )
+        driver = gdal.GetDriverByName('MEM')
+        dataset = driver.Create(
+            '',
+            self.img_int.shape[1],
+            self.img_int.shape[0],
+            self.img_int.shape[2],
+            gdal_dtype
+        )
+
+        # Write data
+        for i in range(self.img_int.shape[2]):
+            dataset.GetRasterBand(i + 1).WriteArray(self.img_int[:, :, i])
+
+        # Establish CRS and conversions
+        self.cart_crs_code = cart_crs_code
+        self.latlon_crs_code = latlon_crs_code
+        self.cart_crs = pyproj.CRS(cart_crs_code)
+        self.latlon_crs = pyproj.CRS(latlon_crs_code)
+        self.cart_to_latlon = pyproj.Transformer.from_crs(
+            self.cart_crs,
+            self.latlon_crs
+        )
+        self.latlon_to_cart = pyproj.Transformer.from_crs(
+            self.latlon_crs,
+            self.cart_crs
+        )
+        dataset.SetProjection(self.cart_crs.to_wkt())
+
+        # Set geotransform
+        dx = (x_bounds[1] - x_bounds[0]) / self.img_shape[1]
+        dy = (y_bounds[1] - y_bounds[0]) / self.img_shape[0]
+        geotransform = (
+            x_bounds[0],
+            dx,
+            0,
+            x_bounds[1],
+            0,
+            -dy
+        )
+        dataset.SetGeoTransform(geotransform)
+
+        self.dataset = dataset
 
     @property
     def latlon_bounds(self):
         if not hasattr(self, '_latlon_bounds'):
-            self._latlon_bounds = self.get_bounds(self.flight.latlon_crs)
+            self._latlon_bounds = self.get_bounds(self.latlon_crs)
         return self._latlon_bounds
 
     @property
     def cart_bounds(self):
         if not hasattr(self, '_cart_bounds'):
-            self._cart_bounds = self.get_bounds(self.flight.cart_crs)
+            self._cart_bounds = self.get_bounds(self.cart_crs)
         return self._cart_bounds
 
     @property
