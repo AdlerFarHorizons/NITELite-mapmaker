@@ -14,9 +14,10 @@ import pandas as pd
 import pyproj
 import scipy
 
+import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-
+import seaborn as sns
 
 class Flight:
 
@@ -632,6 +633,53 @@ class Observation:
 
         return pxs, pys
 
+    def plot_kp(
+        self,
+        ax=None,
+        crs_transform=None,
+        cmap='viridis',
+        vmin=None,
+        vmax=None,
+        *args,
+        **kwargs
+    ):
+
+        if ax is None:
+            fig = plt.figure(figsize=np.array(self.img_shape) / 60.)
+            ax = plt.gca()
+
+        # KP details retrieval
+        kp_responses = np.array([_.response for _ in self.kp])
+        kp_xs, kp_ys = np.array([_.pt for _ in self.kp]).transpose()
+
+        # Transform to appropriate coordinate system
+        if crs_transform is not None:
+            kp_xs, kp_ys = crs_transform(kp_xs, kp_ys)
+
+        # Colormap
+        cmap = sns.color_palette(cmap, as_cmap=True)
+        norm = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
+
+        # Argument update
+        used_kwargs = {
+            'c': 'none',
+            'marker': 'o',
+            's': 150,
+            'linewidth': 2,
+        }
+        used_kwargs.update(kwargs)
+
+        # Plot itself
+        s = ax.scatter(
+            kp_xs,
+            kp_ys,
+            edgecolors=cmap(norm(kp_responses)),
+            *args,
+            **used_kwargs
+        )
+
+        return s
+
     def show(self, ax=None, img='img', *args, **kwargs):
         '''
         NOTE: This will not be consistent with imshow, because with imshow
@@ -797,6 +845,18 @@ class ReferencedObservation(Observation):
             **used_kwargs
         )
         ax.add_patch(rect)
+
+    def plot_kp(self, ax=None, crs_transform='cartesian', *args, **kwargs):
+
+        if crs_transform == 'cartesian':
+            crs_transform = self.convert_pixel_to_cart
+
+        return super().plot_kp(
+            ax=ax,
+            crs_transform=crs_transform,
+            *args,
+            **kwargs
+        )
 
     def show(self, ax=None, img='img', crs='pixel', *args, **kwargs):
         '''
