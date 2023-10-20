@@ -517,7 +517,7 @@ class Image:
 
     @property
     def img_int(self) -> np.ndarray[int]:
-        if hasattr(self, '_img') and not hasattr(self, '_img_int'):
+        if not hasattr(self, '_img_int'):
             self._img_int = self.get_img_int_from_img()
         return self._img_int
 
@@ -636,7 +636,7 @@ class Image:
             s = ax.scatter(
                 kp_xs,
                 kp_ys,
-                    edgecolors=cmap(norm(kp_responses)),
+                edgecolors=cmap(norm(kp_responses)),
                 *args,
                 **used_kwargs
             )
@@ -1005,7 +1005,7 @@ class ReferencedObservation(ReferencedImage, Observation):
     Assumes the file is saved as a GeoTIFF.
     '''
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, flight: Flight, *args, **kwargs):
         '''While we want to inherit most of our properties from
         ReferencedImage, our constructor should be from Observation.
 
@@ -1014,7 +1014,10 @@ class ReferencedObservation(ReferencedImage, Observation):
         Returns:
         '''
 
-        super(ReferencedImage, self).__init__(*args, **kwargs)
+        super(ReferencedImage, self).__init__(flight, *args, **kwargs)
+
+        self.cart_crs = flight.cart_crs
+        self.latlon_crs = flight.latlon_crs
 
     @property
     def dataset(self):

@@ -114,7 +114,7 @@ class TestReferencedImageConstruction(unittest.TestCase):
         x_bounds, y_bounds = expected_obs.cart_bounds
 
         actual_obs = observations.ReferencedImage(
-            img_int=expected_obs.img_int,
+            img=expected_obs.img_int,
             x_bounds=x_bounds,
             y_bounds=y_bounds,
         )
@@ -140,7 +140,7 @@ class TestReferencedImage(unittest.TestCase):
 
         img = self.rng.normal(size=(100, 80, 3))
 
-        self.reffed_image = observations.ReferencedImage(
+        self.reffed = observations.ReferencedImage(
             img=img,
             x_bounds=x_bounds,
             y_bounds=y_bounds,
@@ -148,29 +148,29 @@ class TestReferencedImage(unittest.TestCase):
 
     def test_get_latlon_bounds(self):
 
-        lon_bounds, lat_bounds = self.reffed_image.latlon_bounds
+        lon_bounds, lat_bounds = self.reffed.latlon_bounds
 
         assert lon_bounds[1] > lon_bounds[0]
         assert lat_bounds[1] > lat_bounds[0]
 
     def test_get_cart_bounds(self):
 
-        x_bounds, y_bounds = self.reffed_image.cart_bounds
+        x_bounds, y_bounds = self.reffed.cart_bounds
 
         assert x_bounds[1] > x_bounds[0]
         assert y_bounds[1] > y_bounds[0]
 
     def test_show_in_cart_crs(self):
 
-        self.reffed_image.show(crs='cartesian')
-        self.reffed_image.show(crs='pixel')
+        self.reffed.show(crs='cartesian')
+        self.reffed.show(crs='pixel')
 
     def test_convert_pixel_to_cart(self):
 
-        xs, ys = self.reffed_image.get_cart_coordinates()
-        pxs, pys = self.reffed_image.get_pixel_coordinates()
+        xs, ys = self.reffed.get_cart_coordinates()
+        pxs, pys = self.reffed.get_pixel_coordinates()
 
-        actual_xs, actual_ys = self.reffed_image.convert_pixel_to_cart(
+        actual_xs, actual_ys = self.reffed.convert_pixel_to_cart(
             pxs,
             pys
         )
@@ -180,16 +180,13 @@ class TestReferencedImage(unittest.TestCase):
 
     def test_convert_cart_to_pixel(self):
 
-        xs, ys = self.reffed_image.get_cart_coordinates()
-        pxs, pys = self.reffed_image.get_pixel_coordinates()
+        xs, ys = self.reffed.get_cart_coordinates()
+        pxs, pys = self.reffed.get_pixel_coordinates()
 
-        actual_pxs, actual_pys = self.reffed_image.convert_cart_to_pixel(xs, ys)
+        actual_pxs, actual_pys = self.reffed.convert_cart_to_pixel(xs, ys)
 
         np.testing.assert_allclose(pxs, actual_pxs)
         np.testing.assert_allclose(pys, actual_pys)
-
-
-
 
 
 class TestObservation(unittest.TestCase):
@@ -247,4 +244,5 @@ class TestReferencedObservation(TestObservation, TestReferencedImage):
         reffed_fps = reffed_fps.loc[reffed_fps.notna()]
         ind = reffed_fps.index[0]
 
-        self.obs = self.flight.get_referenced_observation(ind)
+        self.reffed = self.flight.get_referenced_observation(ind)
+        self.obs = self.reffed
