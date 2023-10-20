@@ -592,6 +592,7 @@ class Image:
     def plot_kp(
         self,
         ax=None,
+        kp=None,
         crs_transform=None,
         cmap='viridis',
         vmin=None,
@@ -605,36 +606,38 @@ class Image:
             ax = plt.gca()
 
         # KP details retrieval
-        kp_responses = np.array([_.response for _ in self.kp])
-        kp_xs, kp_ys = np.array([_.pt for _ in self.kp]).transpose()
+        if kp is None:
+            kp = self.kp
+        kp_responses = np.array([_.response for _ in kp])
+        kp_xs, kp_ys = np.array([_.pt for _ in kp]).transpose()
 
         # Transform to appropriate coordinate system
         if crs_transform is not None:
             kp_xs, kp_ys = crs_transform(kp_xs, kp_ys)
 
-            # Colormap
-            cmap = sns.color_palette(cmap, as_cmap=True)
-            norm = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
+        # Colormap
+        cmap = sns.color_palette(cmap, as_cmap=True)
+        norm = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
 
-            # Argument update
-            used_kwargs = {
-                'c': 'none',
-                'marker': 'o',
-                    's': 150,
-                'linewidth': 2,
-            }
-            used_kwargs.update(kwargs)
+        # Argument update
+        used_kwargs = {
+            'c': 'none',
+            'marker': 'o',
+            's': 150,
+            'linewidth': 2,
+        }
+        used_kwargs.update(kwargs)
 
-            # Plot itself
-            s = ax.scatter(
-                kp_xs,
-                kp_ys,
-                edgecolors=cmap(norm(kp_responses)),
-                *args,
-                **used_kwargs
-            )
+        # Plot itself
+        s = ax.scatter(
+            kp_xs,
+            kp_ys,
+            edgecolors=cmap(norm(kp_responses)),
+            *args,
+            **used_kwargs
+        )
 
-            return s
+        return s
 
     def show(self, ax=None, img='img', *args, **kwargs):
         '''
