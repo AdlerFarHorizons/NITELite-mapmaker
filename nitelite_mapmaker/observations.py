@@ -498,13 +498,18 @@ class Flight:
 class Image:
 
     def __init__(self, img):
-        self.img = img
+        if np.issubdtype(img.dtype, np.float):
+            self.img = img
+        elif np.issubdtype(img.dtype, np.integer):
+            self.img_int = img
 
     @property
     def img(self):
         '''Image property for quick access. For the base class Image
         it's very simple, but will be overwritten by other classes.
         '''
+        if hasattr(self, '_img_int') and not hasattr(self, '_img'):
+            self._img = self.get_img_from_img_int()
         return self._img
 
     @img.setter
@@ -512,14 +517,18 @@ class Image:
         self._img = value
 
     @property
-    def img_shape(self):
-        return self._img.shape[:2]
+    def img_int(self) -> np.ndarray[int]:
+        if hasattr(self, '_img') and not hasattr(self, '_img_int'):
+            self._img_int = self.get_img_int_from_img()
+        return self._img_int
+
+    @img_int.setter
+    def img_int(self, value):
+        self._img_int = value
 
     @property
-    def img_int(self) -> np.ndarray[int]:
-        if not hasattr(self, '_img_int'):
-            self._img_int = self.get_img_int()
-        return self._img_int
+    def img_shape(self):
+        return self._img.shape[:2]
 
     @property
     def semitransparent_img(self) -> np.ndarray[float]:
@@ -539,7 +548,13 @@ class Image:
             self.get_features()
         return self._des
 
-    def get_img_int(self) -> np.ndarray[int]:
+    def get_img_from_img_int(self):
+
+        img = (self.img_int / 255).astype(np.float32)
+
+        return img
+
+    def get_img_int_from_img(self) -> np.ndarray[int]:
         '''
 
         TODO: State (and assess) general principle--

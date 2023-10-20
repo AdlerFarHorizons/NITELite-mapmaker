@@ -110,10 +110,10 @@ class TestReferencedImage(unittest.TestCase):
         ind = reffed_fps.index[0]
 
         expected_obs = self.flight.get_referenced_observation(ind)
-        x_bounds, y_bounds = expected_obs.get_cart_bounds()
+        x_bounds, y_bounds = expected_obs.cart_bounds
 
         actual_obs = observations.ReferencedImage(
-            img_int=self.obs.img_int,
+            img_int=expected_obs.img_int,
             x_bounds=x_bounds,
             y_bounds=y_bounds,
         )
