@@ -19,6 +19,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import seaborn as sns
 
+
 class Flight:
 
     def __init__(
@@ -494,40 +495,25 @@ class Flight:
         return ReferencedObservation(self, ind)
 
 
-class Observation:
+class Image:
 
-    def __init__(self, flight: Flight, ind: int, *args, **kwargs):
-        '''Class for handling individual observations.
-        Not intended for use independent of a flight.
-
-        Args:
-            flight: The flight this image was taken as part of.
-            ind: The index of this observation
-        Kwargs:
-        Returns:
-        '''
-        self.flight = flight
-        self.ind = ind
-        self.bit_precisions = self.flight.bit_precisions
+    def __init__(self, img):
+        self.img = img
 
     @property
-    def metadata(self) -> pd.Series:
-        '''Easy reference for the specific metadata row corresponding to this
-        observation.
-
-        Returns:
-            self.metadata: A row of the metadata DataFrame
+    def img(self):
+        '''Image property for quick access. For the base class Image
+        it's very simple, but will be overwritten by other classes.
         '''
-        return self.flight.metadata.loc[self.ind]
-
-    @property
-    def img(self) -> np.ndarray[float]:
-        '''Quick access, using default options for getting the image.
-        For more-controlled access call get_img.
-        '''
-        if not hasattr(self, '_img'):
-            self._img = self.get_img()
         return self._img
+
+    @img.setter
+    def img(self, value):
+        self._img = value
+
+    @property
+    def img_shape(self):
+        return self._img.shape[:2]
 
     @property
     def img_int(self) -> np.ndarray[int]:
@@ -552,37 +538,6 @@ class Observation:
         if not hasattr(self, '_des'):
             self.get_features()
         return self._des
-
-    @property
-    def img_shape(self):
-        if hasattr(self, '_img'):
-            return self._img.shape[:2]
-        else:
-            return self.flight.img_shape
-
-    def get_img(
-        self,
-        conversion_method: str = 'opencv'
-    ) -> np.ndarray[float]:
-        '''Load one of the images.
-
-        Args:
-            conversion_method: How to convert the raw images. Options are
-                'opencv': Let opencv do the work.
-                'crude': Homebrewed method for verification.
-
-        Returns:
-            img: (n,m,3) array containing the image in RGB format
-        '''
-
-        fp = self.metadata['filepath']
-
-        return load_rgb_img(
-            fp,
-            img_shape=self.img_shape,
-            bit_precisions=self.bit_precisions,
-            conversion_method=conversion_method,
-        )
 
     def get_img_int(self) -> np.ndarray[int]:
         '''
@@ -709,18 +664,11 @@ class Observation:
         ax.set_aspect('equal')
 
 
-class ReferencedObservation(Observation):
-    '''
-    Assumes the file is saved as a GeoTIFF.
-    '''
+class ReferencedImage(Image):
 
-    @property
-    def dataset(self):
-        '''GDAL dataset.'''
-        if not hasattr(self, '_dataset'):
-            fp = self.metadata['manually_referenced_fp']
-            self._dataset = gdal.Open(fp)
-        return self._dataset
+    def __init__(self, img, x_bounds, y_bounds):
+
+        super().__init__(img)
 
     @property
     def latlon_bounds(self):
@@ -740,16 +688,6 @@ class ReferencedObservation(Observation):
             return self._img.shape[:2]
         else:
             return (self.dataset.RasterYSize, self.dataset.RasterXSize)
-
-    def get_img(self, k_rot=0):
-
-        fp = self.metadata['manually_referenced_fp']
-
-        # Load the manually-referenced image
-        img = cv2.imread(fp, cv2.IMREAD_UNCHANGED)
-        img = img[:, :, ::-1] / 2**16  # Formatting
-
-        return img
 
     def get_bounds(self, crs: pyproj.CRS) -> Tuple[np.ndarray, np.ndarray]:
         '''Get image bounds in a given coordinate system.
@@ -931,6 +869,108 @@ class ReferencedObservation(Observation):
                         ),
                     ).add_to(bounds_group)
             bounds_group.add_to(m)
+
+
+class Observation(Image):
+
+    def __init__(self, flight: Flight, ind: int, *args, **kwargs):
+        '''Class for handling individual observations.
+        Not intended for use independent of a flight.
+
+        Args:
+            flight: The flight this image was taken as part of.
+            ind: The index of this observation
+        Kwargs:
+        Returns:
+        '''
+        self.flight = flight
+        self.ind = ind
+        self.bit_precisions = self.flight.bit_precisions
+
+    @property
+    def metadata(self) -> pd.Series:
+        '''Easy reference for the specific metadata row corresponding to this
+        observation.
+
+        Returns:
+            self.metadata: A row of the metadata DataFrame
+        '''
+        return self.flight.metadata.loc[self.ind]
+
+    @property
+    def img(self) -> np.ndarray[float]:
+        '''Quick access, using default options for getting the image.
+        For more-controlled access call get_img.
+        '''
+        if not hasattr(self, '_img'):
+            self._img = self.get_img()
+        return self._img
+
+    @property
+    def img_shape(self):
+        if hasattr(self, '_img'):
+            return self._img.shape[:2]
+        else:
+            return self.flight.img_shape
+
+    def get_img(
+        self,
+        conversion_method: str = 'opencv'
+    ) -> np.ndarray[float]:
+        '''Load one of the images.
+
+        Args:
+            conversion_method: How to convert the raw images. Options are
+                'opencv': Let opencv do the work.
+                'crude': Homebrewed method for verification.
+
+        Returns:
+            img: (n,m,3) array containing the image in RGB format
+        '''
+
+        fp = self.metadata['filepath']
+
+        return load_rgb_img(
+            fp,
+            img_shape=self.img_shape,
+            bit_precisions=self.bit_precisions,
+            conversion_method=conversion_method,
+        )
+
+
+class ReferencedObservation(ReferencedImage, Observation):
+    '''
+    Assumes the file is saved as a GeoTIFF.
+    '''
+
+    def __init__(self, *args, **kwargs):
+        '''While we want to inherit most of our properties from
+        ReferencedImage, our constructor should be from Observation.
+
+        Args:
+        Kwargs:
+        Returns:
+        '''
+
+        super(ReferencedImage, self).__init__(*args, **kwargs)
+
+    @property
+    def dataset(self):
+        '''GDAL dataset.'''
+        if not hasattr(self, '_dataset'):
+            fp = self.metadata['manually_referenced_fp']
+            self._dataset = gdal.Open(fp)
+        return self._dataset
+
+    def get_img(self, k_rot=0):
+
+        fp = self.metadata['manually_referenced_fp']
+
+        # Load the manually-referenced image
+        img = cv2.imread(fp, cv2.IMREAD_UNCHANGED)
+        img = img[:, :, ::-1] / 2**16  # Formatting
+
+        return img
 
 
 def load_rgb_img(

@@ -93,6 +93,41 @@ class TestPrepMetadata(unittest.TestCase):
         self.flight.update_metadata_with_cart_bounds()
 
 
+class TestReferencedImage(unittest.TestCase):
+
+    def test_constructor(self):
+
+        generic_setup(self)
+        self.flight.prep_metadata()
+        self.flight.get_manually_georeferenced_filepaths(
+            self.manually_referenced_dir,
+            camera_num=0,
+        )
+
+        # Get the index corresponding to our test image.
+        reffed_fps = self.flight.metadata['manually_referenced_fp']
+        reffed_fps = reffed_fps.loc[reffed_fps.notna()]
+        ind = reffed_fps.index[0]
+
+        expected_obs = self.flight.get_referenced_observation(ind)
+        x_bounds, y_bounds = expected_obs.get_cart_bounds()
+
+        actual_obs = observations.ReferencedImage(
+            img_int=self.obs.img_int,
+            x_bounds=x_bounds,
+            y_bounds=y_bounds,
+        )
+
+        np.testing.assert_allclose(
+            expected_obs.img,
+            actual_obs.img,
+        )
+        np.testing.assert_allclose(
+            actual_obs.dataset.RasterXSize,
+            expected_obs.dataset.RasterXSize,
+        )
+
+
 class TestObservation(unittest.TestCase):
 
     def setUp(self):
