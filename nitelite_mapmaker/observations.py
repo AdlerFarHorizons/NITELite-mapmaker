@@ -502,7 +502,7 @@ class Image:
             self.img = img
         elif np.issubdtype(img.dtype, np.integer):
             self.img_int = img
-            self.img = (self.img_int / 255).astype(np.float32)
+            self.img = (img / 255).astype(np.float32)
 
     @property
     def img(self):
@@ -556,14 +556,7 @@ class Image:
             first, instead of passing in additional arguments.
         '''
 
-        img_int = cv2.normalize(
-            self.img,
-            None,
-            alpha=0,
-            beta=255,
-            norm_type=cv2.NORM_MINMAX,
-            dtype=cv2.CV_8U
-        )
+        img_int = (self.img * 255).astype(np.uint8)
 
         return img_int
 
@@ -663,7 +656,7 @@ class Image:
 
         ax.pcolormesh(
             pxs,
-                pys,
+            pys,
             getattr(self, img),
             *args,
             **kwargs
