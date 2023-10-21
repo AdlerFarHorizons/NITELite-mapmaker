@@ -593,6 +593,7 @@ class Image:
         self,
         ax=None,
         kp=None,
+        colors=None,
         crs_transform=None,
         cmap='viridis',
         vmin=None,
@@ -608,8 +609,9 @@ class Image:
         # KP details retrieval
         if kp is None:
             kp = self.kp
-        kp_responses = np.array([_.response for _ in kp])
         kp_xs, kp_ys = np.array([_.pt for _ in kp]).transpose()
+        if colors is None:
+            colors = np.array([_.response for _ in kp])
 
         # Transform to appropriate coordinate system
         if crs_transform is not None:
@@ -632,7 +634,7 @@ class Image:
         s = ax.scatter(
             kp_xs,
             kp_ys,
-            edgecolors=cmap(norm(kp_responses)),
+            edgecolors=cmap(norm(colors)),
             *args,
             **used_kwargs
         )
