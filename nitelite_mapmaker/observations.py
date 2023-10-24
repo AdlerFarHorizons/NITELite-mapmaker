@@ -791,7 +791,7 @@ class ReferencedImage(Image):
 
     def get_pixel_widths(self):
         xs, ys = self.get_cart_coordinates()
-        return (xs[1] - xs[0]), (ys[1] - ys[0])
+        return np.abs(xs[1] - xs[0]), np.abs(ys[1] - ys[0])
 
     def get_pixel_coordinates(self):
 
