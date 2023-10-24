@@ -767,13 +767,13 @@ class ReferencedImage(Image):
         y_min = y_max + px_height * self.dataset.RasterYSize
 
         # Convert to desired crs
-        file_crs = pyproj.CRS(self.dataset.GetProjection())
-        file_to_desired = pyproj.Transformer.from_crs(
-            file_crs,
+        dataset_crs = pyproj.CRS(self.dataset.GetProjection())
+        dataset_to_desired = pyproj.Transformer.from_crs(
+            dataset_crs,
             crs,
             always_xy=True
         )
-        x_bounds, y_bounds = file_to_desired.transform(
+        x_bounds, y_bounds = dataset_to_desired.transform(
             [x_min, x_max],
             [y_min, y_max]
         )
@@ -788,6 +788,10 @@ class ReferencedImage(Image):
         ys = np.linspace(y_bounds[1], y_bounds[0], self.img_shape[0])
 
         return xs, ys
+
+    def get_pixel_widths(self):
+        xs, ys = self.get_cart_coordinates()
+        return (xs[1] - xs[0]), (ys[1] - ys[0])
 
     def get_pixel_coordinates(self):
 
@@ -884,6 +888,7 @@ class ReferencedImage(Image):
     def add_to_folium_map(
         self,
         m,
+        img: str = 'semitransparent_img',
         label: str = 'referenced',
         include_corner_markers: bool = False
     ):
@@ -901,9 +906,10 @@ class ReferencedImage(Image):
             [lat_bounds[0], lon_bounds[0]],
             [lat_bounds[1], lon_bounds[1]]
         ]
+        img_arr = getattr(self, img)
 
         folium.raster_layers.ImageOverlay(
-            self.dataset.ReadAsArray().transpose(1, 2, 0),
+            img_arr,
             bounds=bounds,
             name=label,
         ).add_to(m)
