@@ -1,4 +1,5 @@
 '''Test file for georeferencing
+# DEPRECATED
 '''
 
 import glob

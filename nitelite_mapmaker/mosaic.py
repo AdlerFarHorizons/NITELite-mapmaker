@@ -125,6 +125,8 @@ class Mosaic:
 
         img_to_save = img.transpose(2, 0, 1)
         self.dataset.WriteArray(img_to_save, xoff=x_offset_count, yoff=y_offset_count)
+
+        self.dataset.FlushCache()
         
     def incorporate_referenced_image(self, src: observations.ReferencedImage):
 

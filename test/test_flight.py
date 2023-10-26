@@ -6,7 +6,8 @@ import unittest
 
 import numpy as np
 
-from nitelite_mapmaker import observations
+from nitelite_mapmaker import observations, data
+from . import test_data
 
 
 def generic_setup(test_case):
@@ -94,168 +95,6 @@ class TestPrepMetadata(unittest.TestCase):
         self.flight.update_metadata_with_cart_bounds()
 
 
-class TestImage(unittest.TestCase):
-
-    def setUp(self):
-
-        self.rng = np.random.default_rng(10326)
-
-    def test_consistent_input_given_float(self):
-
-        img = self.rng.uniform(low=0, high=1., size=(100, 80, 3))
-
-        image = observations.Image(img)
-        np.testing.assert_allclose(
-            img,
-            image.img,
-        )
-
-    def test_consistent_input_given_int(self):
-
-        img_int = self.rng.uniform(
-            low=0,
-            high=255,
-            size=(100, 80, 3),
-        ).astype(np.uint8)
-
-        image = observations.Image(img_int)
-        np.testing.assert_allclose(
-            img_int,
-            image.img_int,
-        )
-
-
-class TestReferencedImageConstruction(unittest.TestCase):
-
-    def setUp(self):
-
-        generic_setup(self)
-        self.flight.prep_metadata()
-        self.flight.get_manually_georeferenced_filepaths(
-            self.manually_referenced_dir,
-            camera_num=0,
-        )
-
-        # Get the index corresponding to our test image.
-        reffed_fps = self.flight.metadata['manually_referenced_fp']
-        reffed_fps = reffed_fps.loc[reffed_fps.notna()]
-        ind = reffed_fps.index[0]
-
-        self.reffed = self.flight.get_referenced_observation(ind)
-
-    def test_constructor(self):
-
-        x_bounds, y_bounds = self.reffed.cart_bounds
-
-        actual_obs = observations.ReferencedImage(
-            img=self.reffed.img,
-            x_bounds=x_bounds,
-            y_bounds=y_bounds,
-        )
-
-        np.testing.assert_allclose(
-            self.reffed.img,
-            actual_obs.img,
-        )
-        np.testing.assert_allclose(
-            actual_obs.dataset.RasterXSize,
-            self.reffed.dataset.RasterXSize,
-        )
-        np.testing.assert_allclose(
-            np.array(actual_obs.cart_bounds),
-            np.array(self.reffed.cart_bounds),
-        )
-
-    def test_constructor_int_input(self):
-
-        x_bounds, y_bounds = self.reffed.cart_bounds
-
-        actual_obs = observations.ReferencedImage(
-            img=self.reffed.img_int,
-            x_bounds=x_bounds,
-            y_bounds=y_bounds,
-        )
-
-        # Tolerance according to lost information.
-        np.testing.assert_allclose(
-            self.reffed.img,
-            actual_obs.img,
-            atol=1 / 255
-        )
-        np.testing.assert_allclose(
-            actual_obs.dataset.RasterXSize,
-            self.reffed.dataset.RasterXSize,
-        )
-        np.testing.assert_allclose(
-            np.array(actual_obs.cart_bounds),
-            np.array(self.reffed.cart_bounds),
-        )
-
-
-class TestReferencedImage(unittest.TestCase):
-
-    def setUp(self):
-
-        x_bounds = np.array([-9599524.7998918, -9590579.50992268])
-        y_bounds = np.array([4856260.998546081, 4862299.303607852])
-
-        self.rng = np.random.default_rng(10326)
-
-        img = self.rng.uniform(
-            low=0,
-            high=255,
-            size=(100, 80, 3),
-        ).astype(np.uint8)
-
-        self.reffed = observations.ReferencedImage(
-            img=img,
-            x_bounds=x_bounds,
-            y_bounds=y_bounds,
-        )
-
-    def test_get_latlon_bounds(self):
-
-        lon_bounds, lat_bounds = self.reffed.latlon_bounds
-
-        assert lon_bounds[1] > lon_bounds[0]
-        assert lat_bounds[1] > lat_bounds[0]
-
-    def test_get_cart_bounds(self):
-
-        x_bounds, y_bounds = self.reffed.cart_bounds
-
-        assert x_bounds[1] > x_bounds[0]
-        assert y_bounds[1] > y_bounds[0]
-
-    def test_show_in_cart_crs(self):
-
-        self.reffed.show(crs='cartesian')
-        self.reffed.show(crs='pixel')
-
-    def test_convert_pixel_to_cart(self):
-
-        xs, ys = self.reffed.get_cart_coordinates()
-        pxs, pys = self.reffed.get_pixel_coordinates()
-
-        actual_xs, actual_ys = self.reffed.convert_pixel_to_cart(
-            pxs,
-            pys
-        )
-
-        np.testing.assert_allclose(xs, actual_xs)
-        np.testing.assert_allclose(ys, actual_ys)
-
-    def test_convert_cart_to_pixel(self):
-
-        xs, ys = self.reffed.get_cart_coordinates()
-        pxs, pys = self.reffed.get_pixel_coordinates()
-
-        actual_pxs, actual_pys = self.reffed.convert_cart_to_pixel(xs, ys)
-
-        np.testing.assert_allclose(pxs, actual_pxs)
-        np.testing.assert_allclose(pys, actual_pys)
-
-
 class TestObservation(unittest.TestCase):
 
     def setUp(self):
@@ -295,7 +134,7 @@ class TestObservation(unittest.TestCase):
         )
 
 
-class TestReferencedObservation(TestObservation, TestReferencedImage):
+class TestReferencedObservation(TestObservation, test_data.TestReferencedImage):
 
     def setUp(self):
 
@@ -313,3 +152,70 @@ class TestReferencedObservation(TestObservation, TestReferencedImage):
 
         self.reffed = self.flight.get_referenced_observation(ind)
         self.obs = self.reffed
+
+
+class TestReferencedImageConstructionConsistency(unittest.TestCase):
+
+    def setUp(self):
+
+        generic_setup(self)
+        self.flight.prep_metadata()
+        self.flight.get_manually_georeferenced_filepaths(
+            self.manually_referenced_dir,
+            camera_num=0,
+        )
+
+        # Get the index corresponding to our test image.
+        reffed_fps = self.flight.metadata['manually_referenced_fp']
+        reffed_fps = reffed_fps.loc[reffed_fps.notna()]
+        ind = reffed_fps.index[0]
+
+        self.reffed = self.flight.get_referenced_observation(ind)
+
+    def test_constructor(self):
+
+        x_bounds, y_bounds = self.reffed.cart_bounds
+
+        actual_obs = data.ReferencedImage(
+            img=self.reffed.img,
+            x_bounds=x_bounds,
+            y_bounds=y_bounds,
+        )
+
+        np.testing.assert_allclose(
+            self.reffed.img,
+            actual_obs.img,
+        )
+        np.testing.assert_allclose(
+            actual_obs.dataset.RasterXSize,
+            self.reffed.dataset.RasterXSize,
+        )
+        np.testing.assert_allclose(
+            np.array(actual_obs.cart_bounds),
+            np.array(self.reffed.cart_bounds),
+        )
+
+    def test_constructor_int_input(self):
+
+        x_bounds, y_bounds = self.reffed.cart_bounds
+
+        actual_obs = data.ReferencedImage(
+            img=self.reffed.img_int,
+            x_bounds=x_bounds,
+            y_bounds=y_bounds,
+        )
+
+        # Tolerance according to lost information.
+        np.testing.assert_allclose(
+            self.reffed.img,
+            actual_obs.img,
+            atol=1 / 255
+        )
+        np.testing.assert_allclose(
+            actual_obs.dataset.RasterXSize,
+            self.reffed.dataset.RasterXSize,
+        )
+        np.testing.assert_allclose(
+            np.array(actual_obs.cart_bounds),
+            np.array(self.reffed.cart_bounds),
+        )
