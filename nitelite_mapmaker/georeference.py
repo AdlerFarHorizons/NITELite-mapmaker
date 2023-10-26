@@ -1,4 +1,5 @@
 '''This module handles georeferencing.
+# DEPRECATED
 '''
 
 from typing import Tuple
