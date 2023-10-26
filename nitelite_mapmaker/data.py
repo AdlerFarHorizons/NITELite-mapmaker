@@ -197,12 +197,12 @@ class Image:
         ax.set_aspect('equal')
 
 
-class Dataset(gdal.Dataset):
-    '''Wrapper for GDAL Dataset.
-    '''
+# class Dataset:
+#     '''Wrapper for GDAL Dataset.
+#     '''
 
 
-class ReferencedImage(Image, Dataset):
+class ReferencedImage(Image):
 
     def __init__(
         self,

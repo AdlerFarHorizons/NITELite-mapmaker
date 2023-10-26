@@ -133,28 +133,12 @@ class Mosaic:
         x_bounds, y_bounds = src.get_bounds(self.crs)
         dst_img = self.get_img(x_bounds, y_bounds)
 
-        # # Pixel edge coordinates
-        # xs = np.arange(x_bounds[0], x_bounds[1] + self.pixel_width, self.pixel_width)
-        # ys = np.arange(y_bounds[1], y_bounds[0] - self.pixel_height, -self.pixel_height)
-
-        # Get the resized image shape
-        # is_resized_x = (
-        #     (x_bounds[0] <= xs)
-        #     & (xs <= x_bounds[1])
-        # )
-        # is_resized_y = (
-        #     (y_bounds[0] <= ys)
-        #     & (ys <= y_bounds[1])
-        # )
-        # resized_src_x_inds = np.arange(xs.size)[is_resized_x]
-        # resized_src_y_inds = np.arange(ys.size)[is_resized_y]
-        
         # Resize the image
         src_img_resized = cv2.resize(
             src.img_int[:, :, :3],
             (dst_img.shape[1], dst_img.shape[0])
         )
-        
+
         # Blend
         is_empty = (dst_img.sum(axis=2) == 0)
         dst_img = np.array([
@@ -164,11 +148,6 @@ class Mosaic:
         dst_img = dst_img.transpose(1, 2, 0)
 
         self.save_img(dst_img, x_bounds, y_bounds)
-
-    # def export_to_geotiff(self, filename):
-
-    #     # Export the final map (optional)
-    #     gdal.Translate(filename, self.vrt_name)
 
 
 def get_containing_bounds(reffed_images, crs):
