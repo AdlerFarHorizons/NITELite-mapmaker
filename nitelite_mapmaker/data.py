@@ -499,8 +499,8 @@ class Dataset:
             pixel_width,
             0.,
             y_bounds[1],
-            pixel_height,
             0.,
+            -pixel_height,
         ])
 
         self.x_bounds = x_bounds
@@ -510,13 +510,16 @@ class Dataset:
         self.crs = crs
 
     @classmethod
-    def open(cls, filename: str, crs: pyproj.CRS, *args, **kwargs):
-
-        if isinstance(crs, str):
-            crs = pyproj.CRS(crs)
+    def open(cls, filename: str, crs: pyproj.CRS=None, *args, **kwargs):
 
         dataset = cls.__new__(cls)
         dataset.dataset = gdal.Open(filename, *args, **kwargs)
+
+        # CRS handling
+        if crs is None:
+            crs = pyproj.CRS(dataset.dataset.GetProjection())
+        elif isinstance(crs, str):
+            crs = pyproj.CRS(crs)
         dataset.crs = crs
 
         # Get bounds

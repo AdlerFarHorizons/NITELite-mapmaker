@@ -151,7 +151,7 @@ class TestDataset(unittest.TestCase):
     def test_constructors_consistent(self):
 
         # Opened from disk
-        dataset_original = data.Dataset.open(self.filepath, 'EPSG:3857')
+        dataset_original = data.Dataset.open(self.filepath)
 
         # Manually constructed
         dataset = data.Dataset(
@@ -163,6 +163,10 @@ class TestDataset(unittest.TestCase):
             dataset_original.crs,
         )
 
+        np.testing.assert_allclose(
+            np.array(dataset_original.dataset.GetGeoTransform()),
+            np.array(dataset.dataset.GetGeoTransform()),
+        )
         assert dataset_original.x_bounds == dataset.x_bounds
         assert dataset_original.y_bounds == dataset.y_bounds
         assert dataset_original.pixel_width == dataset.pixel_width
@@ -171,7 +175,7 @@ class TestDataset(unittest.TestCase):
     def test_save_img(self):
 
         # Copy, since we'll be editing
-        dataset_original = data.Dataset.open(self.filepath, 'EPSG:3857')
+        dataset_original = data.Dataset.open(self.filepath)
 
         # Manually create and save, then check we can open and that it's as
         # expected
@@ -191,7 +195,11 @@ class TestDataset(unittest.TestCase):
         dataset.flush_cache_and_close()
 
         # Reopen, and compare
-        dataset_saved = data.Dataset.open(self.copy_filepath, 'EPSG:3857')
+        dataset_saved = data.Dataset.open(self.copy_filepath)
+        np.testing.assert_allclose(
+            np.array(dataset_original.dataset.GetGeoTransform()),
+            np.array(dataset_saved.dataset.GetGeoTransform()),
+        )
         assert dataset_original.x_bounds == dataset_saved.x_bounds
         assert dataset_original.y_bounds == dataset_saved.y_bounds
         assert dataset_original.pixel_width == dataset_saved.pixel_width
