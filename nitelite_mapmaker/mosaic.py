@@ -6,7 +6,7 @@ import scipy
 # NO refactoring!
 # TODO: Remove this when the draft is done.
 
-from typing import Tuple
+from typing import Tuple, Union
 
 import cv2
 from osgeo import gdal
@@ -40,8 +40,16 @@ class Mosaic(data.Dataset):
     def incorporate_referenced_image(
         self,
         src: data.ReferencedImage,
-        img: str = 'semitransparent_img_int',
+        img: str = 'img_int',
+        fill_value: Union[str, int, float] = None,
     ):
+
+        # Fill value defaults to values that would be opaque
+        if fill_value is None:
+            if 'int' in img:
+                fill_value = 255
+            else:
+                fill_value = 1.
 
         # Get existing data
         x_bounds, y_bounds = src.get_bounds(self.crs)
@@ -55,11 +63,25 @@ class Mosaic(data.Dataset):
         )
 
         # Blend
-        is_empty = (dst_img.sum(axis=2) == 0)
-        dst_img = np.array([
-            np.where(is_empty, src_img_resized[:, :, j], dst_img[:, :, j])
-            for j in range(self.n_bands)
-        ])
-        dst_img = dst_img.transpose(1, 2, 0)
+        # Doesn't consider empty in the final channel.
+        is_empty = (dst_img[:, :, :self.n_bands - 1].sum(axis=2) == 0)
+        blended_img = []
+        for j in range(self.n_bands):
+            try:
+                blended_img_j = np.where(
+                    is_empty,
+                    src_img_resized[:, :, j],
+                    dst_img[:, :, j]
+                )
+            # When there's no band information in the one we're blending,
+            # fall back to the fill value
+            except IndexError:
+                blended_img_j = np.full(
+                    dst_img.shape[:2],
+                    fill_value,
+                    dtype=dst_img.dtype
+                )
+            blended_img.append(blended_img_j)
+        blended_img = np.array(blended_img).transpose(1, 2, 0)
 
-        self.save_img(dst_img, x_bounds, y_bounds)
+        self.save_img(blended_img, x_bounds, y_bounds)
