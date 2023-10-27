@@ -112,6 +112,23 @@ class TestDataset(unittest.TestCase):
 
         dataset = data.Dataset.Open(self.filepath, 'EPSG:3857')
 
+    def test_bounds_to_offset(self):
+
+        dataset = data.Dataset.Open(self.filepath, 'EPSG:3857')
+
+        # Bounds for the whole dataset
+        (
+            x_offset_count,
+            y_offset_count,
+            x_count,
+            y_count,
+        ) = dataset.bounds_to_offset(dataset.x_bounds, dataset.y_bounds)
+
+        assert x_offset_count == 0
+        assert y_offset_count == 0
+        assert x_count == dataset.dataset.RasterXSize
+        assert y_count == dataset.dataset.RasterYSize
+
     def test_get_img(self):
 
         dataset = data.Dataset.Open(self.filepath, 'EPSG:3857')

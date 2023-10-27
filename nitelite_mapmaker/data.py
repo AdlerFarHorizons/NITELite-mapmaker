@@ -541,19 +541,19 @@ class Dataset:
         y_offset_count = int(np.round(y_offset / self.pixel_height))
 
         # Get width counts
-        x_count = int(np.round((x_bounds[1] - x_bounds[0]) / self.pixel_width))
-        y_count = int(np.round((y_bounds[1] - y_bounds[0]) / self.pixel_height))
+        xsize = int(np.round((x_bounds[1] - x_bounds[0]) / self.pixel_width))
+        ysize = int(np.round((y_bounds[1] - y_bounds[0]) / self.pixel_height))
 
-        return x_offset_count, y_offset_count, x_count, y_count
+        return x_offset_count, y_offset_count, xsize, ysize
 
     def get_img(self, x_bounds, y_bounds):
 
-        x_offset_count, y_offset_count, x_count, y_count = self.bounds_to_offset(
+        x_offset_count, y_offset_count, xsize, ysize = self.bounds_to_offset(
             x_bounds,
             y_bounds,
         )
 
-        img = self.dataset.ReadAsArray(xoff=x_offset_count, yoff=y_offset_count, xsize=x_count, ysize=y_count)
+        img = self.dataset.ReadAsArray(xoff=x_offset_count, yoff=y_offset_count, xsize=xsize, ysize=ysize)
         return img.transpose(1, 2, 0)
 
     def get_referenced_image(self, x_bounds, y_bounds):
@@ -579,7 +579,7 @@ class Dataset:
         NOTE: You must call self.flush_cache_and_close to finish saving to disk.
         '''
 
-        x_offset_count, y_offset_count, x_count, y_count = self.bounds_to_offset(
+        x_offset_count, y_offset_count, xsize, ysize = self.bounds_to_offset(
             x_bounds,
             y_bounds,
         )
@@ -593,6 +593,10 @@ def get_bounds_from_dataset(
     crs: pyproj.CRS
 ) -> Tuple[np.ndarray, np.ndarray]:
     '''Get image bounds in a given coordinate system.
+    TODO: Apparently convention is for pixel_height to
+        be negative, consistent with increasing downwards.
+        However I treat these as absolute quantities.
+        This could be made consistent.
 
     Args:
         crs: Desired coordinate system.
@@ -600,25 +604,41 @@ def get_bounds_from_dataset(
     Returns:
         x_bounds: x_min, x_max of the image in the target coordinate system
         y_bounds: y_min, y_max of the image in the target coordinate system
+        pixel_width
+        pixel_height
     '''
 
     # Get the coordinates
     x_min, pixel_width, x_rot, y_max, y_rot, pixel_height = \
         dataset.GetGeoTransform()
-    x_max = x_min + pixel_width * dataset.RasterXSize
-    y_min = y_max + pixel_height * dataset.RasterYSize
 
-    # Convert to desired crs
+    # Convert to desired crs.
+    # Need to do this prior to calculating x_max and y_min
+    # to get addition correct in that space.
     dataset_crs = pyproj.CRS(dataset.GetProjection())
     dataset_to_desired = pyproj.Transformer.from_crs(
         dataset_crs,
         crs,
         always_xy=True
     )
-    x_bounds, y_bounds = dataset_to_desired.transform(
-        [x_min, x_max],
-        [y_min, y_max]
+    x_min, y_max = dataset_to_desired.transform(
+        x_min,
+        y_max
     )
+    pixel_width, pixel_height = dataset_to_desired.transform(
+        pixel_width,
+        pixel_height,
+    )
+
+    # Get bounds
+    x_max = x_min + pixel_width * dataset.RasterXSize
+    y_min = y_max + pixel_height * dataset.RasterYSize
+
+    # Format for output
+    x_bounds = [x_min, x_max]
+    y_bounds = [y_min, y_max]
+    pixel_width = np.abs(pixel_width)
+    pixel_height = np.abs(pixel_height)
 
     return x_bounds, y_bounds, pixel_width, pixel_height
 
