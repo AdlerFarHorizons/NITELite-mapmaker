@@ -510,7 +510,7 @@ class Dataset:
         self.crs = crs
 
     @classmethod
-    def Open(cls, filename: str, crs: pyproj.CRS, *args, **kwargs):
+    def open(cls, filename: str, crs: pyproj.CRS, *args, **kwargs):
 
         if isinstance(crs, str):
             crs = pyproj.CRS(crs)

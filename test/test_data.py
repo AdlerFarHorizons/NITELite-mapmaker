@@ -1,5 +1,6 @@
 import os
 import unittest
+import shutil
 
 import numpy as np
 import cv2
@@ -107,14 +108,21 @@ class TestDataset(unittest.TestCase):
     def setUp(self):
 
         self.filepath = './test/test_data/220513-FH135/images/manually_referenced/Geo 827725516_0.tif'
+        self.copy_filepath = './test/test_data/220513-FH135/images/manually_referenced/temp.tif'
+        if os.path.isfile(self.copy_filepath):
+            os.remove(self.copy_filepath)
+
+    def tearDown(self):
+        if os.path.isfile(self.copy_filepath):
+            os.remove(self.copy_filepath)
 
     def test_open(self):
 
-        dataset = data.Dataset.Open(self.filepath, 'EPSG:3857')
+        dataset = data.Dataset.open(self.filepath, 'EPSG:3857')
 
     def test_bounds_to_offset(self):
 
-        dataset = data.Dataset.Open(self.filepath, 'EPSG:3857')
+        dataset = data.Dataset.open(self.filepath, 'EPSG:3857')
 
         # Bounds for the whole dataset
         (
@@ -131,7 +139,7 @@ class TestDataset(unittest.TestCase):
 
     def test_get_img(self):
 
-        dataset = data.Dataset.Open(self.filepath, 'EPSG:3857')
+        dataset = data.Dataset.open(self.filepath, 'EPSG:3857')
         actual_img = dataset.get_img(
             dataset.x_bounds,
             dataset.y_bounds,
@@ -139,3 +147,52 @@ class TestDataset(unittest.TestCase):
         expected_img = cv2.imread(self.filepath, cv2.IMREAD_UNCHANGED)[:, :, ::-1]
 
         np.testing.assert_allclose(actual_img, expected_img)
+
+    def test_constructors_consistent(self):
+
+        # Opened from disk
+        dataset_original = data.Dataset.open(self.filepath, 'EPSG:3857')
+
+        # Manually constructed
+        dataset = data.Dataset(
+            self.copy_filepath,
+            dataset_original.x_bounds,
+            dataset_original.y_bounds,
+            dataset_original.pixel_width,
+            dataset_original.pixel_height,
+            dataset_original.crs,
+        )
+
+        assert dataset_original.x_bounds == dataset.x_bounds
+        assert dataset_original.y_bounds == dataset.y_bounds
+        assert dataset_original.pixel_width == dataset.pixel_width
+        assert dataset_original.pixel_height == dataset.pixel_height
+
+    def test_save_img(self):
+
+        # Copy, since we'll be editing
+        dataset_original = data.Dataset.open(self.filepath, 'EPSG:3857')
+
+        # Manually create and save, then check we can open and that it's as
+        # expected
+        dataset = data.Dataset(
+            self.copy_filepath,
+            dataset_original.x_bounds,
+            dataset_original.y_bounds,
+            dataset_original.pixel_width,
+            dataset_original.pixel_height,
+            dataset_original.crs,
+        )
+        img = dataset_original.get_img(
+            dataset_original.x_bounds,
+            dataset_original.y_bounds,
+        )
+        dataset.save_img(img, dataset.x_bounds, dataset.y_bounds)
+        dataset.flush_cache_and_close()
+
+        # Reopen, and compare
+        dataset_saved = data.Dataset.open(self.copy_filepath, 'EPSG:3857')
+        assert dataset_original.x_bounds == dataset_saved.x_bounds
+        assert dataset_original.y_bounds == dataset_saved.y_bounds
+        assert dataset_original.pixel_width == dataset_saved.pixel_width
+        assert dataset_original.pixel_height == dataset_saved.pixel_height
