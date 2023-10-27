@@ -63,6 +63,12 @@ class Image:
         return self._semitransparent_img
 
     @property
+    def semitransparent_img_int(self) -> np.ndarray[int]:
+        if not hasattr(self, '_semitransparent_img_int'):
+            self._semitransparent_img_int = self.get_semitransparent_img_int()
+        return self._semitransparent_img_int
+
+    @property
     def kp(self):
         if not hasattr(self, '_kp'):
             self.get_features()
@@ -93,6 +99,9 @@ class Image:
 
     def get_semitransparent_img(self) -> np.ndarray[float]:
 
+        if self.img.shape[2] == 4:
+            return self.img
+
         semitransparent_img = np.zeros(
             shape=(self.img_shape[0], self.img_shape[1], 4)
         )
@@ -102,6 +111,9 @@ class Image:
         return semitransparent_img
 
     def get_semitransparent_img_int(self) -> np.ndarray[int]:
+
+        if self.img_int.shape[2] == 4:
+            return self.img_int
 
         semitransparent_img_int = np.zeros(
             shape=(self.img_shape[0], self.img_shape[1], 4),
@@ -633,31 +645,27 @@ def get_bounds_from_dataset(
     x_min, pixel_width, x_rot, y_max, y_rot, pixel_height = \
         dataset.GetGeoTransform()
 
+    # Get bounds
+    x_max = x_min + pixel_width * dataset.RasterXSize
+    y_min = y_max + pixel_height * dataset.RasterYSize
+
     # Convert to desired crs.
-    # Need to do this prior to calculating x_max and y_min
-    # to get addition correct in that space.
     dataset_crs = pyproj.CRS(dataset.GetProjection())
     dataset_to_desired = pyproj.Transformer.from_crs(
         dataset_crs,
         crs,
         always_xy=True
     )
-    x_min, y_max = dataset_to_desired.transform(
-        x_min,
-        y_max
+    x_bounds, y_bounds = dataset_to_desired.transform(
+        [x_min, x_max],
+        [y_min, y_max],
     )
     pixel_width, pixel_height = dataset_to_desired.transform(
         pixel_width,
         pixel_height,
     )
 
-    # Get bounds
-    x_max = x_min + pixel_width * dataset.RasterXSize
-    y_min = y_max + pixel_height * dataset.RasterYSize
-
     # Format for output
-    x_bounds = [x_min, x_max]
-    y_bounds = [y_min, y_max]
     pixel_width = np.abs(pixel_width)
     pixel_height = np.abs(pixel_height)
 
@@ -700,3 +708,59 @@ def get_containing_bounds(reffed_images, crs, bordersize=0):
         y_bounds[1] += bordersize * pixel_height
 
     return x_bounds, y_bounds, pixel_width, pixel_height
+
+# DEBUG
+# def get_bounds_from_dataset(
+#     dataset: gdal.Dataset,
+#     crs: pyproj.CRS
+# ) -> Tuple[np.ndarray, np.ndarray]:
+#     '''Get image bounds in a given coordinate system.
+#     TODO: Apparently convention is for pixel_height to
+#         be negative, consistent with increasing downwards.
+#         However I treat these as absolute quantities.
+#         This could be made consistent.
+# 
+#     Args:
+#         crs: Desired coordinate system.
+# 
+#     Returns:
+#         x_bounds: x_min, x_max of the image in the target coordinate system
+#         y_bounds: y_min, y_max of the image in the target coordinate system
+#         pixel_width
+#         pixel_height
+#     '''
+# 
+#     # Get the coordinates
+#     x_min, pixel_width, x_rot, y_max, y_rot, pixel_height = \
+#         dataset.GetGeoTransform()
+# 
+#     # Convert to desired crs.
+#     # Need to do this prior to calculating x_max and y_min
+#     # to get addition correct in that space.
+#     dataset_crs = pyproj.CRS(dataset.GetProjection())
+#     dataset_to_desired = pyproj.Transformer.from_crs(
+#         dataset_crs,
+#         crs,
+#         always_xy=True
+#     )
+#     x_min, y_max = dataset_to_desired.transform(
+#         x_min,
+#         y_max
+#     )
+#     pixel_width, pixel_height = dataset_to_desired.transform(
+#         pixel_width,
+#         pixel_height,
+#     )
+# 
+#     # Get bounds
+#     x_max = x_min + pixel_width * dataset.RasterXSize
+#     y_min = y_max + pixel_height * dataset.RasterYSize
+# 
+#     # Format for output
+#     x_bounds = [x_min, x_max]
+#     y_bounds = [y_min, y_max]
+#     pixel_width = np.abs(pixel_width)
+#     pixel_height = np.abs(pixel_height)
+# 
+#     return x_bounds, y_bounds, pixel_width, pixel_height
+# 
