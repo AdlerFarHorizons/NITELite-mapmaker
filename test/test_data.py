@@ -136,6 +136,6 @@ class TestDataset(unittest.TestCase):
             dataset.x_bounds,
             dataset.y_bounds,
         )
-        expected_img = cv2.imread(self.filepath)
+        expected_img = cv2.imread(self.filepath, cv2.IMREAD_UNCHANGED)[:, :, ::-1]
 
         np.testing.assert_allclose(actual_img, expected_img)
