@@ -539,16 +539,18 @@ class Dataset:
         self.n_bands = n_bands
 
     @classmethod
-    def open(cls, filename: str, crs: pyproj.CRS=None, *args, **kwargs):
+    def open(cls, filename: str, crs: pyproj.CRS = None, *args, **kwargs):
 
         dataset = cls.__new__(cls)
         dataset.dataset = gdal.Open(filename, *args, **kwargs)
 
         # CRS handling
+        if isinstance(crs, str):
+            crs = pyproj.CRS(crs)
         if crs is None:
             crs = pyproj.CRS(dataset.dataset.GetProjection())
-        elif isinstance(crs, str):
-            crs = pyproj.CRS(crs)
+        else:
+            dataset.dataset.SetProjection(crs.to_wkt())
         dataset.crs = crs
         dataset.filename = filename
 
