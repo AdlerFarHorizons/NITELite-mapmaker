@@ -2,6 +2,7 @@ import os
 import unittest
 
 import numpy as np
+import cv2
 
 from nitelite_mapmaker import data
 
@@ -99,3 +100,25 @@ class TestReferencedImage(unittest.TestCase):
 
         np.testing.assert_allclose(pxs, actual_pxs)
         np.testing.assert_allclose(pys, actual_pys)
+
+
+class TestDataset(unittest.TestCase):
+
+    def setUp(self):
+
+        self.filepath = './test/test_data/220513-FH135/images/manually_referenced/Geo 827725516_0.tif'
+
+    def test_open(self):
+
+        dataset = data.Dataset.Open(self.filepath, 'EPSG:3857')
+
+    def test_get_img(self):
+
+        dataset = data.Dataset.Open(self.filepath, 'EPSG:3857')
+        actual_img = dataset.get_img(
+            dataset.x_bounds,
+            dataset.y_bounds,
+        )
+        expected_img = cv2.imread(self.filepath)
+
+        np.testing.assert_allclose(actual_img, expected_img)

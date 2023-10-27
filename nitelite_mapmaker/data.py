@@ -197,11 +197,6 @@ class Image:
         ax.set_aspect('equal')
 
 
-# class Dataset:
-#     '''Wrapper for GDAL Dataset.
-#     '''
-
-
 class ReferencedImage(Image):
 
     def __init__(
@@ -262,6 +257,30 @@ class ReferencedImage(Image):
 
         self.dataset = dataset
 
+    # TODO: Enable loading directly from a geotiff.
+    # This is more confusing than it should be.
+    # @classmethod
+    # def from_geotiff(
+    #     cls,
+    #     filename,
+    #     cart_crs_code: str = 'EPSG:3857',
+    #     latlon_crs_code: str = 'EPSG:4326',
+    # ):
+
+    #     reffed_image = ReferencedImage.__new__
+    #     reffed_image.dataset = gdal.Open(filename, gdal.GA_Update)
+
+    #     img = reffed_image.dataset.ReadAsArray().transpose(1, 2, 0)
+    #     super(ReferencedImage, 
+    #     x_bounds, y_bounds = reffed_image.get_bounds()
+    #     
+    #         img,
+    #         x_bounds,
+    #         y_bounds,
+    #         cart_crs_code: str = 'EPSG:3857',
+    #         latlon_crs_code: str = 'EPSG:4326',
+    #     )
+
     @property
     def latlon_bounds(self):
         if not hasattr(self, '_latlon_bounds'):
@@ -281,34 +300,9 @@ class ReferencedImage(Image):
         else:
             return (self.dataset.RasterYSize, self.dataset.RasterXSize)
 
-    def get_bounds(self, crs: pyproj.CRS) -> Tuple[np.ndarray, np.ndarray]:
-        '''Get image bounds in a given coordinate system.
+    def get_bounds(self, crs: pyproj.CRS):
 
-        Args:
-            crs: Desired coordinate system.
-
-        Returns:
-            x_bounds: x_min, x_max of the image in the target coordinate system
-            y_bounds: y_min, y_max of the image in the target coordinate system
-        '''
-
-        # Get the coordinates
-        x_min, px_width, x_rot, y_max, y_rot, px_height = \
-            self.dataset.GetGeoTransform()
-        x_max = x_min + px_width * self.dataset.RasterXSize
-        y_min = y_max + px_height * self.dataset.RasterYSize
-
-        # Convert to desired crs
-        dataset_crs = pyproj.CRS(self.dataset.GetProjection())
-        dataset_to_desired = pyproj.Transformer.from_crs(
-            dataset_crs,
-            crs,
-            always_xy=True
-        )
-        x_bounds, y_bounds = dataset_to_desired.transform(
-            [x_min, x_max],
-            [y_min, y_max]
-        )
+        x_bounds, y_bounds, _, _ = get_bounds_from_dataset(self.dataset, crs)
 
         return x_bounds, y_bounds
 
@@ -467,3 +461,196 @@ class ReferencedImage(Image):
                         ),
                     ).add_to(bounds_group)
             bounds_group.add_to(m)
+
+
+class Dataset:
+    '''Wrapper for GDAL Dataset.
+
+    TODO: Probably would be better for this to be a subclass.
+    '''
+
+    def __init__(
+        self,
+        filename: str,
+        x_bounds: Tuple[float, float],
+        y_bounds: Tuple[float, float],
+        pixel_width: float,
+        pixel_height: float,
+        crs: pyproj.CRS,
+        n_bands: int = 3,
+    ):
+
+        # Initialize an empty GeoTiff
+        xsize = int(np.round((x_bounds[1] - x_bounds[0]) / pixel_width))
+        ysize = int(np.round((y_bounds[1] - y_bounds[0]) / pixel_height))
+        driver = gdal.GetDriverByName('GTiff')
+        self.dataset = driver.Create(
+            filename,
+            xsize=xsize,
+            ysize=ysize,
+            bands=n_bands,
+            options=['TILED=YES']
+        )
+
+        # Properties
+        self.dataset.SetProjection(crs.to_wkt())
+        self.dataset.SetGeoTransform([
+            x_bounds[0],
+            pixel_width,
+            0.,
+            y_bounds[1],
+            pixel_height,
+            0.,
+        ])
+
+        self.x_bounds = x_bounds
+        self.y_bounds = y_bounds
+        self.pixel_width = pixel_width
+        self.pixel_height = pixel_height
+        self.crs = crs
+
+    @classmethod
+    def Open(cls, filename: str, crs: pyproj.CRS, *args, **kwargs):
+
+        if isinstance(crs, str):
+            crs = pyproj.CRS(crs)
+
+        dataset = cls.__new__(cls)
+        dataset.dataset = gdal.Open(filename, *args, **kwargs)
+        dataset.crs = crs
+
+        # Get bounds
+        (
+            dataset.x_bounds,
+            dataset.y_bounds,
+            dataset.pixel_width,
+            dataset.pixel_height
+        ) = get_bounds_from_dataset(
+            dataset.dataset,
+            crs,
+        )
+
+        return dataset
+
+    def bounds_to_offset(self, x_bounds, y_bounds):
+
+        # Get offsets
+        x_offset = x_bounds[0] - self.x_bounds[0]
+        x_offset_count = int(np.round(x_offset / self.pixel_width))
+        y_offset = self.y_bounds[1] - y_bounds[1]
+        y_offset_count = int(np.round(y_offset / self.pixel_height))
+
+        # Get width counts
+        x_count = int(np.round((x_bounds[1] - x_bounds[0]) / self.pixel_width))
+        y_count = int(np.round((y_bounds[1] - y_bounds[0]) / self.pixel_height))
+
+        return x_offset_count, y_offset_count, x_count, y_count
+
+    def get_img(self, x_bounds, y_bounds):
+
+        x_offset_count, y_offset_count, x_count, y_count = self.bounds_to_offset(
+            x_bounds,
+            y_bounds,
+        )
+
+        img = self.dataset.ReadAsArray(xoff=x_offset_count, yoff=y_offset_count, xsize=x_count, ysize=y_count)
+        return img.transpose(1, 2, 0)
+
+    def get_referenced_image(self, x_bounds, y_bounds):
+
+        img = self.get_img(x_bounds, y_bounds)
+
+        reffed_image = ReferencedImage(
+            img,
+            x_bounds,
+            y_bounds,
+            cart_crs_code='{}:{}'.format(*self.crs.to_authority()),
+        )
+
+        return reffed_image
+
+    def flush_cache_and_close(self):
+
+        self.dataset.FlushCache()
+        self.dataset = None
+
+    def save_img(self, img, x_bounds, y_bounds):
+        '''
+        NOTE: You must call self.flush_cache_and_close to finish saving to disk.
+        '''
+
+        x_offset_count, y_offset_count, x_count, y_count = self.bounds_to_offset(
+            x_bounds,
+            y_bounds,
+        )
+
+        img_to_save = img.transpose(2, 0, 1)
+        self.dataset.WriteArray(img_to_save, xoff=x_offset_count, yoff=y_offset_count)
+
+
+def get_bounds_from_dataset(
+    dataset: gdal.Dataset,
+    crs: pyproj.CRS
+) -> Tuple[np.ndarray, np.ndarray]:
+    '''Get image bounds in a given coordinate system.
+
+    Args:
+        crs: Desired coordinate system.
+
+    Returns:
+        x_bounds: x_min, x_max of the image in the target coordinate system
+        y_bounds: y_min, y_max of the image in the target coordinate system
+    '''
+
+    # Get the coordinates
+    x_min, pixel_width, x_rot, y_max, y_rot, pixel_height = \
+        dataset.GetGeoTransform()
+    x_max = x_min + pixel_width * dataset.RasterXSize
+    y_min = y_max + pixel_height * dataset.RasterYSize
+
+    # Convert to desired crs
+    dataset_crs = pyproj.CRS(dataset.GetProjection())
+    dataset_to_desired = pyproj.Transformer.from_crs(
+        dataset_crs,
+        crs,
+        always_xy=True
+    )
+    x_bounds, y_bounds = dataset_to_desired.transform(
+        [x_min, x_max],
+        [y_min, y_max]
+    )
+
+    return x_bounds, y_bounds, pixel_width, pixel_height
+
+
+def get_containing_bounds(reffed_images, crs):
+
+    # Pixel size
+    all_x_bounds = []
+    all_y_bounds = []
+    pixel_widths = []
+    pixel_heights = []
+    for i, reffed_image_i in enumerate(reffed_images):
+
+        # Bounds
+        x_bounds_i, y_bounds_i = reffed_image_i.get_bounds(crs)
+        all_x_bounds.append(x_bounds_i)
+        all_y_bounds.append(y_bounds_i)
+
+        # Pixel properties
+        pixel_width, pixel_height = reffed_image_i.get_pixel_widths()
+        pixel_widths.append(pixel_width)
+        pixel_heights.append(pixel_height)
+
+    # Containing bounds
+    all_x_bounds = np.array(all_x_bounds)
+    all_y_bounds = np.array(all_y_bounds)
+    x_bounds = [all_x_bounds[:, 0].min(), all_x_bounds[:, 1].max()]
+    y_bounds = [all_y_bounds[:, 0].min(), all_y_bounds[:, 1].max()]
+
+    # Use median pixel properties
+    pixel_width = np.median(pixel_widths)
+    pixel_height = np.median(pixel_heights)
+
+    return x_bounds, y_bounds, pixel_width, pixel_height
+

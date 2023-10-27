@@ -321,6 +321,7 @@ class Flight:
         img_log_fp: str = None,
         imu_log_fp: str = None,
         gps_log_fp: str = None,
+        camera_num: int = 1,
     ) -> pd.DataFrame:
         '''Load the image, IMU, and GPS metadata and correlate them.
 
@@ -348,7 +349,10 @@ class Flight:
         )
 
         if self.referenced_dir is not None:
-            _ = self.get_manually_georeferenced_filepaths(self.referenced_dir)
+            _ = self.get_manually_georeferenced_filepaths(
+                self.referenced_dir,
+                camera_num=camera_num,
+            )
 
         return self.metadata
 
