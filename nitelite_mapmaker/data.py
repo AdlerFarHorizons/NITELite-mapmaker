@@ -508,6 +508,7 @@ class Dataset:
         self.pixel_width = pixel_width
         self.pixel_height = pixel_height
         self.crs = crs
+        self.filename = filename
 
     @classmethod
     def open(cls, filename: str, crs: pyproj.CRS=None, *args, **kwargs):
@@ -521,6 +522,7 @@ class Dataset:
         elif isinstance(crs, str):
             crs = pyproj.CRS(crs)
         dataset.crs = crs
+        dataset.filename = filename
 
         # Get bounds
         (
@@ -646,7 +648,7 @@ def get_bounds_from_dataset(
     return x_bounds, y_bounds, pixel_width, pixel_height
 
 
-def get_containing_bounds(reffed_images, crs):
+def get_containing_bounds(reffed_images, crs, bordersize=0):
 
     # Pixel size
     all_x_bounds = []
@@ -675,5 +677,10 @@ def get_containing_bounds(reffed_images, crs):
     pixel_width = np.median(pixel_widths)
     pixel_height = np.median(pixel_heights)
 
-    return x_bounds, y_bounds, pixel_width, pixel_height
+    if bordersize != 0:
+        x_bounds[0] -= bordersize * pixel_width
+        x_bounds[1] += bordersize * pixel_width
+        y_bounds[0] -= bordersize * pixel_height
+        y_bounds[1] += bordersize * pixel_height
 
+    return x_bounds, y_bounds, pixel_width, pixel_height

@@ -18,12 +18,13 @@ from . import data
 class Mosaic(data.Dataset):
 
     @classmethod
-    def from_referenced_images(cls, filename, reffed_images, crs):
+    def from_referenced_images(cls, filename, reffed_images, crs, bordersize=2):
 
         # Bounds
         x_bounds, y_bounds, pixel_width, pixel_height = data.get_containing_bounds(
             reffed_images,
-            crs
+            crs,
+            bordersize=bordersize,
         )
         mosaic = Mosaic(
             filename,
