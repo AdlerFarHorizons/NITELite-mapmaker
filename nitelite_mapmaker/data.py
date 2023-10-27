@@ -101,6 +101,19 @@ class Image:
 
         return semitransparent_img
 
+    def get_semitransparent_img_int(self) -> np.ndarray[int]:
+
+        semitransparent_img_int = np.zeros(
+            shape=(self.img_shape[0], self.img_shape[1], 4),
+            dtype=np.uint8,
+        )
+        semitransparent_img_int[:, :, :3] = self.img_int
+        semitransparent_img_int[:, :, 3] = (
+            255 * self.get_nonzero_mask().astype(np.uint8)
+        )
+
+        return semitransparent_img_int
+
     def get_features(self):
 
         orb = cv2.ORB_create()
@@ -477,7 +490,7 @@ class Dataset:
         pixel_width: float,
         pixel_height: float,
         crs: pyproj.CRS,
-        n_bands: int = 3,
+        n_bands: int = 4,
     ):
 
         # Initialize an empty GeoTiff
@@ -502,6 +515,8 @@ class Dataset:
             0.,
             -pixel_height,
         ])
+        if n_bands == 4:
+            self.dataset.GetRasterBand(4).SetMetadataItem('Alpha', '1')
 
         self.x_bounds = x_bounds
         self.y_bounds = y_bounds
@@ -509,6 +524,7 @@ class Dataset:
         self.pixel_height = pixel_height
         self.crs = crs
         self.filename = filename
+        self.n_bands = n_bands
 
     @classmethod
     def open(cls, filename: str, crs: pyproj.CRS=None, *args, **kwargs):

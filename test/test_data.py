@@ -186,6 +186,7 @@ class TestDataset(unittest.TestCase):
             dataset_original.pixel_width,
             dataset_original.pixel_height,
             dataset_original.crs,
+            n_bands=3,
         )
         img = dataset_original.get_img(
             dataset_original.x_bounds,

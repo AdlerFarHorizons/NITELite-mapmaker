@@ -321,7 +321,6 @@ class Flight:
         img_log_fp: str = None,
         imu_log_fp: str = None,
         gps_log_fp: str = None,
-        camera_num: int = 1,
     ) -> pd.DataFrame:
         '''Load the image, IMU, and GPS metadata and correlate them.
 
@@ -351,7 +350,6 @@ class Flight:
         if self.referenced_dir is not None:
             _ = self.get_manually_georeferenced_filepaths(
                 self.referenced_dir,
-                camera_num=camera_num,
             )
 
         return self.metadata
@@ -359,7 +357,6 @@ class Flight:
     def get_manually_georeferenced_filepaths(
         self,
         manually_georeferenced_dir: str,
-        camera_num: int = 1,
     ) -> pd.Series:
         '''Associate the image files with image files that have been
         manually georeferenced, assuming the timestamp is reliable.
@@ -367,8 +364,6 @@ class Flight:
         Args:
             manually_georeferenced_dir:
                 Location of the manually-georeferenced files.
-            camera_num:
-                What camera to use.
 
         Returns:
             manually_referenced_fps:
@@ -379,7 +374,7 @@ class Flight:
         # Get the timestamp IDs for the manually-referenced images
         man_fps = glob.glob(os.path.join(manually_georeferenced_dir, '*.tif'))
         man_fps = pd.Series(man_fps)
-        pattern = r'(\d+)_{}.*.tif'.format(camera_num)
+        pattern = r'(\d+)_\d.*.tif'
         man_ts_ids = man_fps.str.findall(pattern).str[0].astype('Int64')
 
         # Create a dataframe to work with

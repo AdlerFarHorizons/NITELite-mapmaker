@@ -37,14 +37,20 @@ class Mosaic(data.Dataset):
 
         return mosaic
 
-    def incorporate_referenced_image(self, src: data.ReferencedImage):
+    def incorporate_referenced_image(
+        self,
+        src: data.ReferencedImage,
+        img: str = 'semitransparent_img_int',
+    ):
 
+        # Get existing data
         x_bounds, y_bounds = src.get_bounds(self.crs)
         dst_img = self.get_img(x_bounds, y_bounds)
 
         # Resize the image
+        src_img = getattr(src, img)
         src_img_resized = cv2.resize(
-            src.img_int[:, :, :3],
+            src_img[:, :, :self.n_bands],
             (dst_img.shape[1], dst_img.shape[0])
         )
 
@@ -52,7 +58,7 @@ class Mosaic(data.Dataset):
         is_empty = (dst_img.sum(axis=2) == 0)
         dst_img = np.array([
             np.where(is_empty, src_img_resized[:, :, j], dst_img[:, :, j])
-            for j in range(3)
+            for j in range(self.n_bands)
         ])
         dst_img = dst_img.transpose(1, 2, 0)
 
