@@ -50,7 +50,7 @@ class Mosaic(data.Dataset):
         # Resize the image
         src_img = getattr(src, img)
         src_img_resized = cv2.resize(
-            src_img[:, :, :self.n_bands],
+            src_img,
             (dst_img.shape[1], dst_img.shape[0])
         )
 
