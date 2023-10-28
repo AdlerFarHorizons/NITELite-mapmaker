@@ -583,12 +583,38 @@ class Dataset:
 
     def get_img(self, x_bounds, y_bounds):
 
+        # Out of bounds
+        if (
+            (x_bounds[0] > self.x_bounds[1])
+            or (x_bounds[1] < self.x_bounds[0])
+            or (y_bounds[0] > self.y_bounds[1])
+            or (y_bounds[1] < self.y_bounds[0])
+        ):
+            raise ValueError(
+                'Tried to retrieve data fully out-of-bounds.'
+            )
+
+        # Only partially out-of-bounds
+        if x_bounds[0] < self.x_bounds[0]:
+            x_bounds[0] = self.x_bounds[0]
+        if x_bounds[1] > self.x_bounds[1]:
+            x_bounds[1] = self.x_bounds[1]
+        if y_bounds[0] < self.y_bounds[0]:
+            y_bounds[0] = self.y_bounds[0]
+        if y_bounds[1] > self.y_bounds[1]:
+            y_bounds[1] = self.y_bounds[1]
+
         x_offset_count, y_offset_count, xsize, ysize = self.bounds_to_offset(
             x_bounds,
             y_bounds,
         )
 
-        img = self.dataset.ReadAsArray(xoff=x_offset_count, yoff=y_offset_count, xsize=xsize, ysize=ysize)
+        img = self.dataset.ReadAsArray(
+            xoff=x_offset_count,
+            yoff=y_offset_count,
+            xsize=xsize,
+            ysize=ysize
+        )
         return img.transpose(1, 2, 0)
 
     def get_referenced_image(self, x_bounds, y_bounds):

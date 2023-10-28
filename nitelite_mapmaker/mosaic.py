@@ -40,13 +40,13 @@ class Mosaic(data.Dataset):
     def incorporate_referenced_image(
         self,
         src: data.ReferencedImage,
-        img: str = 'img_int',
+        img_key: str = 'img_int',
         fill_value: Union[str, int, float] = None,
     ):
 
         # Fill value defaults to values that would be opaque
         if fill_value is None:
-            if 'int' in img:
+            if 'int' in img_key:
                 fill_value = 255
             else:
                 fill_value = 1.
@@ -56,7 +56,7 @@ class Mosaic(data.Dataset):
         dst_img = self.get_img(x_bounds, y_bounds)
 
         # Resize the image
-        src_img = getattr(src, img)
+        src_img = getattr(src, img_key)
         src_img_resized = cv2.resize(
             src_img,
             (dst_img.shape[1], dst_img.shape[0])
