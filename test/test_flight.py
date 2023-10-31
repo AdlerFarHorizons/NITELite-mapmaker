@@ -78,7 +78,6 @@ class TestPrepMetadata(unittest.TestCase):
         self.flight.prep_metadata()
         fps = self.flight.get_manually_georeferenced_filepaths(
             self.manually_referenced_dir,
-            camera_num=0,
         )
         fp_camera_num = fps[fps.notna()].str.findall(
             r'(\d).tif'
@@ -90,7 +89,6 @@ class TestPrepMetadata(unittest.TestCase):
         self.flight.prep_metadata()
         fps = self.flight.get_manually_georeferenced_filepaths(
             self.manually_referenced_dir,
-            camera_num=0,
         )
         self.flight.update_metadata_with_cart_bounds()
 
@@ -142,7 +140,6 @@ class TestReferencedObservation(TestObservation, test_data.TestReferencedImage):
         self.flight.prep_metadata()
         self.flight.get_manually_georeferenced_filepaths(
             self.manually_referenced_dir,
-            camera_num=0,
         )
 
         # Get the index corresponding to our test image.
@@ -162,7 +159,6 @@ class TestReferencedImageConstructionConsistency(unittest.TestCase):
         self.flight.prep_metadata()
         self.flight.get_manually_georeferenced_filepaths(
             self.manually_referenced_dir,
-            camera_num=0,
         )
 
         # Get the index corresponding to our test image.
