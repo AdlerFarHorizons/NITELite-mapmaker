@@ -44,13 +44,6 @@ class Mosaic(data.Dataset):
         fill_value: Union[str, int, float] = None,
     ):
 
-        # Fill value defaults to values that would be opaque
-        if fill_value is None:
-            if 'int' in img_key:
-                fill_value = 255
-            else:
-                fill_value = 1.
-
         # Get existing data
         x_bounds, y_bounds = src.get_bounds(self.crs)
         dst_img = self.get_img(x_bounds, y_bounds)
@@ -62,26 +55,45 @@ class Mosaic(data.Dataset):
             (dst_img.shape[1], dst_img.shape[0])
         )
 
-        # Blend
-        # Doesn't consider empty in the final channel.
-        is_empty = (dst_img[:, :, :self.n_bands - 1].sum(axis=2) == 0)
-        blended_img = []
-        for j in range(self.n_bands):
-            try:
-                blended_img_j = np.where(
-                    is_empty,
-                    src_img_resized[:, :, j],
-                    dst_img[:, :, j]
-                )
-            # When there's no band information in the one we're blending,
-            # fall back to the fill value
-            except IndexError:
-                blended_img_j = np.full(
-                    dst_img.shape[:2],
-                    fill_value,
-                    dtype=dst_img.dtype
-                )
-            blended_img.append(blended_img_j)
-        blended_img = np.array(blended_img).transpose(1, 2, 0)
+        blended_img = blend_imgs(
+            src_img=src_img_resized,
+            dst_img=dst_img,
+            fill_value=fill_value,
+        )
 
         self.save_img(blended_img, x_bounds, y_bounds)
+
+
+def blend_imgs(src_img, dst_img, fill_value=None):
+
+    # Fill value defaults to values that would be opaque
+    if fill_value is None:
+        if np.issubdtype(dst_img.dtype, np.integer):
+            fill_value = 255
+        else:
+            fill_value = 1.
+
+    # Blend
+    # Doesn't consider empty in the final channel.
+    n_bands = dst_img.shape[-1]
+    is_empty = (dst_img[:, :, :n_bands - 1].sum(axis=2) == 0)
+    blended_img = []
+    for j in range(n_bands):
+        try:
+            blended_img_j = np.where(
+                is_empty,
+                src_img[:, :, j],
+                dst_img[:, :, j]
+            )
+        # When there's no band information in the one we're blending,
+        # fall back to the fill value
+        except IndexError:
+            blended_img_j = np.full(
+                dst_img.shape[:2],
+                fill_value,
+                dtype=dst_img.dtype
+            )
+        blended_img.append(blended_img_j)
+    blended_img = np.array(blended_img).transpose(1, 2, 0)
+
+    return blended_img
