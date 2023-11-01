@@ -14,6 +14,16 @@ class TestImage(unittest.TestCase):
 
         self.rng = np.random.default_rng(10326)
 
+    def test_open(self):
+
+        example_fp = (
+            'test/test_data/220513-FH135/images'
+            '/manually_referenced/Geo 836109848_1.tif'
+        )
+        image = data.Image.open(example_fp)
+
+        assert image.img is not None
+
     def test_consistent_input_given_float(self):
 
         img = self.rng.uniform(low=0, high=1., size=(100, 80, 3))

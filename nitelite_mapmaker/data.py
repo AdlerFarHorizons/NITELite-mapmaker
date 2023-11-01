@@ -33,6 +33,15 @@ class Image:
             self.img_int = (img / max_val * 255).astype(np.uint8)
             self.img = (img / max_val).astype(np.float32)
 
+    @classmethod
+    def open(cls, fp):
+
+        img = cv2.imread(fp, cv2.IMREAD_UNCHANGED)
+        max_val = np.iinfo(img.dtype).max
+        img = img[:, :, ::-1] / max_val  # Formatting
+
+        return Image(img) 
+
     @property
     def img(self):
         '''Image property for quick access. For the base class Image
