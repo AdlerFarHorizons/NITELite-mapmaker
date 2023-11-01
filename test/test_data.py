@@ -60,6 +60,26 @@ class TestReferencedImage(unittest.TestCase):
             y_bounds=y_bounds,
         )
 
+        self.temp_fp = './test/test_data/other/temp.tiff'
+        os.makedirs(os.path.dirname(self.temp_fp), exist_ok=True)
+        if os.path.isfile(self.temp_fp):
+            os.remove(self.temp_fp)
+
+    def tearDown(self):
+
+        if os.path.isfile(self.temp_fp):
+            os.remove(self.temp_fp)
+
+    def test_save_and_open(self):
+
+        self.reffed.save(self.temp_fp)
+        new_reffed = data.ReferencedImage.open(self.temp_fp)
+
+        np.testing.assert_allclose(
+            self.reffed.img_int,
+            new_reffed.img_int,
+        )
+
     def test_get_latlon_bounds(self):
 
         lon_bounds, lat_bounds = self.reffed.latlon_bounds

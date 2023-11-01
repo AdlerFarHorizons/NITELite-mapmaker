@@ -136,6 +136,8 @@ class TestReferencedObservation(TestObservation, test_data.TestReferencedImage):
 
     def setUp(self):
 
+        super(TestObservation, self).setUp()
+
         generic_setup(self)
         self.flight.prep_metadata()
         self.flight.get_manually_georeferenced_filepaths(

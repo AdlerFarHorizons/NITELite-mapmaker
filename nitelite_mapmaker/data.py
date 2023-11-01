@@ -282,29 +282,21 @@ class ReferencedImage(Image):
 
         self.dataset = dataset
 
-    # TODO: Enable loading directly from a geotiff.
-    # This is more confusing than it should be.
-    # @classmethod
-    # def from_geotiff(
-    #     cls,
-    #     filename,
-    #     cart_crs_code: str = 'EPSG:3857',
-    #     latlon_crs_code: str = 'EPSG:4326',
-    # ):
+    @classmethod
+    def open(
+        cls,
+        filename,
+        cart_crs_code: str = 'EPSG:3857',
+        latlon_crs_code: str = 'EPSG:4326',
+    ):
 
-    #     reffed_image = ReferencedImage.__new__
-    #     reffed_image.dataset = gdal.Open(filename, gdal.GA_Update)
+        reffed_image = ReferencedImage.__new__(cls)
 
-    #     img = reffed_image.dataset.ReadAsArray().transpose(1, 2, 0)
-    #     super(ReferencedImage, 
-    #     x_bounds, y_bounds = reffed_image.get_bounds()
-    #     
-    #         img,
-    #         x_bounds,
-    #         y_bounds,
-    #         cart_crs_code: str = 'EPSG:3857',
-    #         latlon_crs_code: str = 'EPSG:4326',
-    #     )
+        reffed_image.dataset = gdal.Open(filename, gdal.GA_Update)
+        img = reffed_image.dataset.ReadAsArray().transpose(1, 2, 0)
+        super(ReferencedImage, reffed_image).__init__(img)
+
+        return reffed_image
 
     @property
     def latlon_bounds(self):
@@ -324,6 +316,17 @@ class ReferencedImage(Image):
             return self._img.shape[:2]
         else:
             return (self.dataset.RasterYSize, self.dataset.RasterXSize)
+
+    def save(self, fp, img_key='img_int'):
+
+        # Store to in-memory data first
+        save_arr = getattr(self, img_key).transpose(2, 0, 1)
+        self.dataset.WriteArray(save_arr)
+
+        # Create a copy with a driver that saves to disk
+        save_driver = gdal.GetDriverByName('GTiff')
+        save_dataset = save_driver.CreateCopy(fp, self.dataset, 0)
+        save_dataset.FlushCache()
 
     def get_bounds(self, crs: pyproj.CRS):
 
