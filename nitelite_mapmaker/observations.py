@@ -591,7 +591,8 @@ class ReferencedObservation(data.ReferencedImage, Observation):
 
         # Load the manually-referenced image
         img = cv2.imread(fp, cv2.IMREAD_UNCHANGED)
-        img = img[:, :, ::-1] / 2**16  # Formatting
+        max_val = np.iinfo(img.dtype).max 
+        img = img[:, :, ::-1] / max_val  # Formatting
 
         return img
 

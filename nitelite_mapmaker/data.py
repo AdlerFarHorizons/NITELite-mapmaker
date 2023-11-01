@@ -28,8 +28,10 @@ class Image:
         if np.issubdtype(img.dtype, np.floating):
             self.img = img
         elif np.issubdtype(img.dtype, np.integer):
-            self.img_int = img
-            self.img = (img / 255).astype(np.float32)
+            max_val = np.iinfo(img.dtype).max
+            # Convert to uint8, the expected type
+            self.img_int = (img / max_val * 255).astype(np.uint8)
+            self.img = (img / max_val).astype(np.float32)
 
     @property
     def img(self):
