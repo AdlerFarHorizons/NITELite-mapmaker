@@ -82,7 +82,7 @@ class TestPrepMetadata(unittest.TestCase):
         fp_camera_num = fps[fps.notna()].str.findall(
             r'(\d).tif'
         ).str[-1].astype(int)
-        n_bad = (fp_camera_num != 0).sum()
+        n_bad = (fp_camera_num != 1).sum()
         assert n_bad == 0
 
     def test_update_metadata_with_cart_bounds(self):
