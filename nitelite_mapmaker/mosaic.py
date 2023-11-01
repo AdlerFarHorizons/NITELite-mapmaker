@@ -11,6 +11,7 @@ from typing import Tuple, Union
 import cv2
 from osgeo import gdal
 import pyproj
+import tqdm
 
 from . import data
 
@@ -62,6 +63,14 @@ class Mosaic(data.Dataset):
         )
 
         self.save_img(blended_img, x_bounds, y_bounds)
+
+    def fit(self, fps):
+
+        for i, fp in enumerate(tqdm.tqdm(fps)):
+
+            obs_i = data.ReferencedImage.open(fp, self.cart_crs_code)
+
+            self.incorporate_referenced_image(obs_i)
 
 
 def blend_imgs(src_img, dst_img, fill_value=None):
