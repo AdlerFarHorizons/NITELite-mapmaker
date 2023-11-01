@@ -137,8 +137,9 @@ class TestDataset(unittest.TestCase):
 
     def setUp(self):
 
-        self.filepath = './test/test_data/220513-FH135/images/manually_referenced/Geo 827725516_0.tif'
-        self.copy_filepath = './test/test_data/220513-FH135/images/manually_referenced/temp.tif'
+        data_dir = 'test/test_data/220513-FH135/images/manually_referenced'
+        self.filepath = os.path.join(data_dir, 'Geo 225856_1473511261_0.tif')
+        self.copy_filepath = os.path.join(data_dir, 'temp.tif')
         if os.path.isfile(self.copy_filepath):
             os.remove(self.copy_filepath)
 
