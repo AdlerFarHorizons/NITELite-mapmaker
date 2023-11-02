@@ -33,3 +33,25 @@ class TestFit(unittest.TestCase):
         mosaic = mos.Mosaic.from_referenced_images(self.fp, reffed_images)
 
         mosaic.fit(self.test_fps)
+
+    def test_from_search_regions(self):
+
+        reffed_images = [data.ReferencedImage.open(_) for _ in self.test_fps]
+        cart_bounds = np.array([_.cart_bounds for _ in reffed_images])
+        search_coords = 0.5 * np.sum(cart_bounds, axis=2)
+        search_radii = np.diff(cart_bounds, axis=2)[:, 0, :].max(axis=1)
+
+        mosaic = mos.Mosaic.from_search_regions(
+            self.fp,
+            search_coords,
+            search_radii,
+        )
+
+        # Cartesian coords are going to be large, unlike latlon coords
+        assert np.abs(mosaic.x_bounds).max() > 1000
+
+        assert mosaic.x_bounds[0] <= cart_bounds[:, 0, :].min()
+        assert mosaic.x_bounds[1] >= cart_bounds[:, 0, :].max()
+        assert mosaic.y_bounds[0] <= cart_bounds[:, 1, :].min()
+        assert mosaic.y_bounds[1] >= cart_bounds[:, 1, :].max()
+        

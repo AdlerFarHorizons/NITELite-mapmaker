@@ -1,15 +1,29 @@
 '''Main mapmaker file.
 '''
+from typing import Union
+
+import pyproj
 
 from . import observations, data_viewer
 
 
 class Mapmaker:
 
-    def __init__(self, **observation_kwargs):
+    def __init__(
+        self,
+        crs: Union[str, pyproj.CRS] = 'EPSG:3857',
+        **observation_kwargs
+    ):
 
-        # Main data
-        self.flight = observations.Flight(**observation_kwargs)
+        if isinstance(crs, str):
+            crs = pyproj.CRS(crs)
+        self.crs = crs
+
+        # Data
+        self.flight = observations.Flight(
+            cart_crs_code=self.crs,
+            **observation_kwargs
+        )
 
         self.data_viewer = data_viewer.DataViewer(self.flight)
 
@@ -20,3 +34,13 @@ class Mapmaker:
         '''
 
         self.flight.prep_metadata(metadata_fp, *args, **kwargs)
+
+    def fit(
+        self,
+        fps: list[str],
+        search_coords: list[tuple[float, float]],
+        search_radii: list[float],
+    ):
+
+        # Make the mosaic
+        pass

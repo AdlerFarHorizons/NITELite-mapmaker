@@ -19,6 +19,22 @@ from . import data
 class Mosaic(data.Dataset):
 
     @classmethod
+    def from_search_regions(
+        cls,
+        filename,
+        search_coords: list[list[float, float]],
+        search_radii: list[float],
+    ):
+
+        search_coords - search_radii
+
+        search_coords = np.array(search_coords)
+        x_min, y_min = search_coords.min(axis=0)
+        x_max, y_max = search_coords.max(axis=0)
+
+
+
+    @classmethod
     def from_referenced_images(
         cls,
         filename,
