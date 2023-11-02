@@ -19,7 +19,16 @@ from . import data
 class Mosaic(data.Dataset):
 
     @classmethod
-    def from_referenced_images(cls, filename, reffed_images, crs, bordersize=2):
+    def from_referenced_images(
+        cls,
+        filename,
+        reffed_images,
+        crs=None,
+        bordersize=2,
+    ):
+
+        if crs is None:
+            crs = reffed_images[0].cart_crs
 
         # Bounds
         x_bounds, y_bounds, pixel_width, pixel_height = data.get_containing_bounds(
@@ -68,7 +77,7 @@ class Mosaic(data.Dataset):
 
         for i, fp in enumerate(tqdm.tqdm(fps)):
 
-            obs_i = data.ReferencedImage.open(fp, self.cart_crs_code)
+            obs_i = data.ReferencedImage.open(fp, self.crs)
 
             self.incorporate_referenced_image(obs_i)
 

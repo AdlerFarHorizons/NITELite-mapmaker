@@ -259,24 +259,14 @@ class ReferencedImage(Image):
             gdal_dtype
         )
 
+        self.dataset = dataset
+
         # Write data
         for i in range(self.img_int.shape[2]):
-            dataset.GetRasterBand(i + 1).WriteArray(self.img_int[:, :, i])
+            self.dataset.GetRasterBand(i + 1).WriteArray(self.img_int[:, :, i])
 
-        # Establish CRS and conversions
-        self.cart_crs_code = cart_crs_code
-        self.latlon_crs_code = latlon_crs_code
-        self.cart_crs = pyproj.CRS(cart_crs_code)
-        self.latlon_crs = pyproj.CRS(latlon_crs_code)
-        self.cart_to_latlon = pyproj.Transformer.from_crs(
-            self.cart_crs,
-            self.latlon_crs
-        )
-        self.latlon_to_cart = pyproj.Transformer.from_crs(
-            self.latlon_crs,
-            self.cart_crs
-        )
-        dataset.SetProjection(self.cart_crs.to_wkt())
+        # Set CRS properties
+        self.set_projections(cart_crs_code, latlon_crs_code)
 
         # Set geotransform
         dx = (x_bounds[1] - x_bounds[0]) / self.img_shape[1]
@@ -289,9 +279,7 @@ class ReferencedImage(Image):
             0,
             -dy
         )
-        dataset.SetGeoTransform(geotransform)
-
-        self.dataset = dataset
+        self.dataset.SetGeoTransform(geotransform)
 
     @classmethod
     def open(
@@ -306,6 +294,9 @@ class ReferencedImage(Image):
         reffed_image.dataset = gdal.Open(filename, gdal.GA_Update)
         img = reffed_image.dataset.ReadAsArray().transpose(1, 2, 0)
         super(ReferencedImage, reffed_image).__init__(img)
+
+        # Set CRS properties
+        reffed_image.set_projections(cart_crs_code, latlon_crs_code)
 
         return reffed_image
 
@@ -338,6 +329,23 @@ class ReferencedImage(Image):
         save_driver = gdal.GetDriverByName('GTiff')
         save_dataset = save_driver.CreateCopy(fp, self.dataset, 0)
         save_dataset.FlushCache()
+
+    def set_projections(self, cart_crs_code, latlon_crs_code):
+
+        # Establish CRS and conversions
+        self.cart_crs_code = cart_crs_code
+        self.latlon_crs_code = latlon_crs_code
+        self.cart_crs = pyproj.CRS(cart_crs_code)
+        self.latlon_crs = pyproj.CRS(latlon_crs_code)
+        self.cart_to_latlon = pyproj.Transformer.from_crs(
+            self.cart_crs,
+            self.latlon_crs
+        )
+        self.latlon_to_cart = pyproj.Transformer.from_crs(
+            self.latlon_crs,
+            self.cart_crs
+        )
+        self.dataset.SetProjection(self.cart_crs.to_wkt())
 
     def get_bounds(self, crs: pyproj.CRS):
 
